@@ -200,18 +200,17 @@ input[type="range"].duty-slider:active::-webkit-slider-thumb {
   margin-top: calc((0.5rem - 1.625rem) / 2);
 }
 
-/* Motor rotor: always spin around geometric center */
+/* Motor rotor: rotate only — parent flex box handles centering */
 @keyframes spin-motor {
   from {
-    transform: translate(-50%, -50%) rotate(0deg);
+    transform: rotate(0deg);
   }
   to {
-    transform: translate(-50%, -50%) rotate(360deg);
+    transform: rotate(360deg);
   }
 }
 
 .motor-spin {
-  /* left/top 50% + translate(-50%,-50%) keep the rotor centered while rotating */
   animation: spin-motor var(--spin-duration, 1s) linear infinite;
   transform-origin: center center;
 }

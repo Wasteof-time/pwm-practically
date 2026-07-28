@@ -92,8 +92,9 @@ export function WaveCanvas({
       }
 
       const dpr = window.devicePixelRatio || 1;
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
+      const parent = canvas.parentElement;
+      const w = parent?.clientWidth || canvas.clientWidth;
+      const h = parent?.clientHeight || canvas.clientHeight;
       if (w === 0 || h === 0) {
         raf = requestAnimationFrame(frame);
         return;
@@ -102,10 +103,11 @@ export function WaveCanvas({
       if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
+        canvas.style.width = `${w}px`;
+        canvas.style.height = `${h}px`;
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Solid black scope face
       ctx.fillStyle = SCOPE.bg;
       ctx.fillRect(0, 0, w, h);
 
@@ -159,7 +161,6 @@ export function WaveCanvas({
         ctx.setLineDash([]);
       }
 
-      // Electric green PWM trace
       ctx.strokeStyle = SCOPE.signal;
       ctx.lineWidth = 6;
       ctx.lineJoin = "round";
@@ -171,7 +172,6 @@ export function WaveCanvas({
       ctx.shadowBlur = 0;
       ctx.restore();
 
-      // Saffron dotted average line
       if (p.showAverage) {
         const y = lo - (lo - hi) * d;
         ctx.strokeStyle = SCOPE.saffron;
@@ -231,7 +231,7 @@ export function WaveCanvas({
       ref={canvasRef}
       id="wave"
       aria-label="PWM square wave"
-      className="block h-[220px] w-full max-w-full cursor-ew-resize touch-none rounded-xl sm:h-[300px] md:h-[340px] lg:h-[380px]"
+      className="absolute inset-0 block h-full w-full cursor-ew-resize touch-none"
       style={{ background: SCOPE.bg }}
       onPointerDown={(e) => {
         draggingRef.current = true;

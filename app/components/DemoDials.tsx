@@ -5,9 +5,11 @@ import type { CSSProperties } from "react";
 type DemoDialsProps = {
   duty: number;
   playing: boolean;
+  /** Stretch to fill parent height (desktop column layout). */
+  fill?: boolean;
 };
 
-export function DemoDials({ duty, playing }: DemoDialsProps) {
+export function DemoDials({ duty, playing, fill = false }: DemoDialsProps) {
   const d = duty / 100;
   // Speedometer: -90° (left) at 0% → 0° (up) at 50% → +90° (right) at 100%
   const servoAngle = -90 + d * 180;
@@ -15,12 +17,22 @@ export function DemoDials({ duty, playing }: DemoDialsProps) {
   const spinDuration = Math.max(0.12, 2.2 - d * 2.05);
 
   return (
-    <section className="rounded-2xl border border-border/80 bg-card p-3 shadow-[var(--panel-shadow)] sm:p-5">
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+    <section
+      className={`rounded-2xl border border-border/80 bg-card p-3 shadow-[var(--panel-shadow)] sm:p-5 ${
+        fill ? "flex h-full min-h-0 flex-col" : ""
+      }`}
+    >
+      <div
+        className={`grid grid-cols-3 gap-2 sm:gap-3 ${
+          fill ? "min-h-0 flex-1 content-center" : ""
+        }`}
+      >
         {/* LED */}
-        <div className="flex min-w-0 flex-col items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3">
           <div
-            className="relative flex aspect-square w-full max-w-[7rem] items-center justify-center overflow-hidden rounded-full border-4 border-border bg-muted"
+            className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-full border-4 border-border bg-muted ${
+              fill ? "max-w-[min(100%,9rem)]" : "max-w-[7rem]"
+            }`}
             style={{
               boxShadow: `0 0 ${40 * d + 4}px ${10 * d}px color-mix(in oklab, var(--signal) ${Math.round(75 * d)}%, transparent)`,
             }}
@@ -35,38 +47,36 @@ export function DemoDials({ duty, playing }: DemoDialsProps) {
           </p>
         </div>
 
-        {/* Motor — blades + hub share true geometric center */}
-        <div className="flex min-w-0 flex-col items-center gap-2 sm:gap-3">
-          <div className="relative aspect-square w-full max-w-[7rem] overflow-hidden rounded-full border-4 border-border bg-muted">
-            {/* Spinning assembly: absolutely centered, origin at center */}
-            <div
-              className={`absolute left-1/2 top-1/2 h-[72%] w-[72%] -translate-x-1/2 -translate-y-1/2 ${
-                spinning ? "motor-spin" : ""
-              }`}
-              style={
-                {
-                  transformOrigin: "center center",
-                  ...(spinning
-                    ? { "--spin-duration": `${spinDuration}s` }
-                    : {}),
-                } as CSSProperties
-              }
-            >
-              {[0, 60, 120, 180, 240, 300].map((deg) => (
-                <span
-                  key={deg}
-                  className="absolute left-1/2 top-1/2 block rounded-full bg-accent"
-                  style={{
-                    width: "14%",
-                    height: "46%",
-                    // Bottom-center of blade sits on rotor center; then fan out
-                    transform: `translate(-50%, -100%) rotate(${deg}deg)`,
-                    transformOrigin: "50% 100%",
-                  }}
-                />
-              ))}
+        {/* Motor */}
+        <div className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3">
+          <div
+            className={`relative aspect-square w-full overflow-hidden rounded-full border-4 border-border bg-muted ${
+              fill ? "max-w-[min(100%,9rem)]" : "max-w-[7rem]"
+            }`}
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className={`relative h-[72%] w-[72%] ${spinning ? "motor-spin" : ""}`}
+                style={
+                  spinning
+                    ? ({ "--spin-duration": `${spinDuration}s` } as CSSProperties)
+                    : undefined
+                }
+              >
+                {[0, 60, 120, 180, 240, 300].map((deg) => (
+                  <span
+                    key={deg}
+                    className="absolute left-1/2 top-1/2 block rounded-full bg-accent"
+                    style={{
+                      width: "14%",
+                      height: "46%",
+                      transform: `translate(-50%, -100%) rotate(${deg}deg)`,
+                      transformOrigin: "50% 100%",
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-            {/* Hub fixed at dial center (does not need to spin separately) */}
             <span className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[18%] w-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-sm" />
           </div>
           <p className="w-full truncate text-center text-[0.65rem] font-bold text-muted-foreground sm:text-[0.8rem]">
@@ -74,16 +84,17 @@ export function DemoDials({ duty, playing }: DemoDialsProps) {
           </p>
         </div>
 
-        {/* Servo — speedometer needle, pivots at dial center, −90°…+90° */}
-        <div className="flex min-w-0 flex-col items-center gap-2 sm:gap-3">
-          <div className="relative aspect-square w-full max-w-[7rem] overflow-hidden rounded-full border-4 border-border bg-muted">
-            {/* Soft arc ticks (optional gauge feel) */}
+        {/* Servo */}
+        <div className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3">
+          <div
+            className={`relative aspect-square w-full overflow-hidden rounded-full border-4 border-border bg-muted ${
+              fill ? "max-w-[min(100%,9rem)]" : "max-w-[7rem]"
+            }`}
+          >
             <div
               className="pointer-events-none absolute inset-[12%] rounded-full border border-border/60"
               aria-hidden
             />
-
-            {/* Needle: bottom end fixed at center, points outward */}
             <div
               className="absolute left-1/2 top-1/2 z-[1] will-change-transform"
               style={{
@@ -96,8 +107,6 @@ export function DemoDials({ duty, playing }: DemoDialsProps) {
             >
               <div className="h-full w-full rounded-full bg-signal shadow-[0_0_8px_color-mix(in_oklab,var(--signal)_50%,transparent)]" />
             </div>
-
-            {/* Center pivot */}
             <span className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[16%] w-[16%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-sm" />
             <span className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[7%] w-[7%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal" />
           </div>
