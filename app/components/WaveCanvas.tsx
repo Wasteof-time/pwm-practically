@@ -231,7 +231,7 @@ export function WaveCanvas({
       ref={canvasRef}
       id="wave"
       aria-label="PWM square wave"
-      className="block h-[300px] w-full cursor-ew-resize touch-none rounded-xl sm:h-[380px]"
+      className="block h-[220px] w-full max-w-full cursor-ew-resize touch-none rounded-xl sm:h-[300px] md:h-[340px] lg:h-[380px]"
       style={{ background: SCOPE.bg }}
       onPointerDown={(e) => {
         draggingRef.current = true;

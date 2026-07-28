@@ -2,21 +2,21 @@
 
 :root {
   --radius: 1rem;
-  --background: oklch(0.97 0.015 240);
+  --background: oklch(0.96 0.02 240);
   --foreground: oklch(0.24 0.04 252);
   --card: oklch(1 0 0);
   --primary: oklch(0.62 0.18 148);
   --primary-foreground: oklch(0.99 0.01 150);
   --secondary: oklch(0.92 0.02 250);
   --secondary-foreground: oklch(0.24 0.04 252);
-  --muted: oklch(0.93 0.015 250);
+  --muted: oklch(0.94 0.015 250);
   --muted-foreground: oklch(0.45 0.03 252);
   --accent: oklch(0.72 0.16 60);
-  --border: oklch(0.86 0.02 250);
-  --signal: oklch(0.62 0.18 148);
+  --border: oklch(0.9 0.015 250);
+  --signal: oklch(0.55 0.17 148);
   --warn: oklch(0.7 0.16 60);
   --grid: oklch(0.88 0.02 250);
-  --panel-shadow: 0 18px 40px -26px oklch(0 0 0 / 0.35);
+  --panel-shadow: 0 8px 30px -12px oklch(0.4 0.04 250 / 0.18);
 
   /* Oscilloscope palette (always dark scope) */
   --scope-bg: #050507;
@@ -58,15 +58,25 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Duty cycle range — large kid-friendly thumb */
+/* ── Apple-style continuous slider ─────────────────────────────── */
+.apple-slider {
+  position: relative;
+  width: 100%;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+}
+
 input[type="range"].duty-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 1.5rem;
-  margin-top: 1rem;
+  height: 0.4rem;
+  margin: 0;
   border-radius: 999px;
   outline: none;
   cursor: pointer;
@@ -74,37 +84,134 @@ input[type="range"].duty-slider {
     to right,
     var(--signal) 0%,
     var(--signal) var(--fill, 50%),
-    var(--muted) var(--fill, 50%),
-    var(--muted) 100%
+    oklch(0.9 0.01 250) var(--fill, 50%),
+    oklch(0.9 0.01 250) 100%
   );
+  transition: background 0.12s ease-out;
 }
 
+/* WebKit track */
+input[type="range"].duty-slider::-webkit-slider-runnable-track {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: transparent;
+}
+
+/* WebKit thumb — Apple white capsule */
 input[type="range"].duty-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 2.6rem;
-  height: 2.6rem;
+  appearance: none;
+  width: 1.625rem;
+  height: 1.625rem;
+  margin-top: calc((0.4rem - 1.625rem) / 2);
   border-radius: 999px;
-  background: var(--card);
-  border: 5px solid var(--signal);
-  box-shadow: 0 0 22px -4px var(--signal);
+  background: #ffffff;
+  border: none;
+  box-shadow:
+    0 0 0 0.5px oklch(0 0 0 / 0.06),
+    0 1px 2px oklch(0 0 0 / 0.08),
+    0 3px 10px oklch(0 0 0 / 0.12),
+    0 0 0 0 var(--signal);
   cursor: grab;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease,
+    background 0.15s ease;
 }
 
+input[type="range"].duty-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 0.5px oklch(0 0 0 / 0.06),
+    0 2px 4px oklch(0 0 0 / 0.1),
+    0 6px 16px oklch(0 0 0 / 0.14),
+    0 0 0 3px color-mix(in oklab, var(--signal) 18%, transparent);
+}
+
+input[type="range"].duty-slider:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale(1.14);
+  box-shadow:
+    0 0 0 0.5px oklch(0 0 0 / 0.06),
+    0 2px 6px oklch(0 0 0 / 0.12),
+    0 8px 20px oklch(0 0 0 / 0.16),
+    0 0 0 5px color-mix(in oklab, var(--signal) 22%, transparent);
+}
+
+input[type="range"].duty-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 0.5px oklch(0 0 0 / 0.06),
+    0 1px 2px oklch(0 0 0 / 0.08),
+    0 3px 10px oklch(0 0 0 / 0.12),
+    0 0 0 4px color-mix(in oklab, var(--signal) 28%, transparent);
+}
+
+/* Firefox track */
+input[type="range"].duty-slider::-moz-range-track {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: oklch(0.9 0.01 250);
+  border: none;
+}
+
+input[type="range"].duty-slider::-moz-range-progress {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--signal);
+}
+
+/* Firefox thumb */
 input[type="range"].duty-slider::-moz-range-thumb {
-  width: 2.6rem;
-  height: 2.6rem;
+  width: 1.625rem;
+  height: 1.625rem;
   border-radius: 999px;
-  background: var(--card);
-  border: 5px solid var(--signal);
+  background: #ffffff;
+  border: none;
+  box-shadow:
+    0 0 0 0.5px oklch(0 0 0 / 0.06),
+    0 1px 2px oklch(0 0 0 / 0.08),
+    0 3px 10px oklch(0 0 0 / 0.12);
   cursor: grab;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
 }
 
+input[type="range"].duty-slider:hover::-moz-range-thumb {
+  transform: scale(1.08);
+}
+
+input[type="range"].duty-slider:active::-moz-range-thumb {
+  cursor: grabbing;
+  transform: scale(1.14);
+}
+
+/* Soft press feedback on the track while dragging */
+input[type="range"].duty-slider:active {
+  height: 0.5rem;
+  transition: height 0.15s ease;
+}
+
+input[type="range"].duty-slider:active::-webkit-slider-runnable-track {
+  height: 0.5rem;
+}
+
+input[type="range"].duty-slider:active::-webkit-slider-thumb {
+  margin-top: calc((0.5rem - 1.625rem) / 2);
+}
+
+/* Motor rotor: always spin around geometric center */
 @keyframes spin-motor {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
   to {
-    transform: rotate(360deg);
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 
 .motor-spin {
+  /* left/top 50% + translate(-50%,-50%) keep the rotor centered while rotating */
   animation: spin-motor var(--spin-duration, 1s) linear infinite;
+  transform-origin: center center;
 }

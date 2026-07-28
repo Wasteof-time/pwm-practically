@@ -18,6 +18,13 @@ const CHALLENGES = [
 
 type Challenge = (typeof CHALLENGES)[number];
 
+const panel =
+  "rounded-2xl border border-border/80 bg-card p-4 shadow-[var(--panel-shadow)] sm:p-5";
+const btn =
+  "inline-flex items-center justify-center rounded-full border border-border/90 bg-card px-3.5 py-1.5 text-sm font-semibold text-foreground/90 transition-all duration-200 hover:bg-muted active:scale-[0.98]";
+const btnPrimary =
+  "inline-flex items-center justify-center rounded-full border border-transparent bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-200 hover:brightness-105 active:scale-[0.98]";
+
 export function PwmPlayground() {
   const [duty, setDuty] = useState(65);
   const [freq, setFreq] = useState(4);
@@ -45,129 +52,149 @@ export function PwmPlayground() {
   }, []);
 
   return (
-    <div className="mx-auto min-h-full max-w-6xl px-4 py-6 sm:px-4">
-      <header>
-        <h1 className="text-[clamp(1.75rem,4vw,2.25rem)] font-bold tracking-tight">
-          PWM Playground <span className="text-signal">⚡</span>
+    <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
+      {/* Header */}
+      <header className="mb-4 sm:mb-6">
+        <h1 className="text-[clamp(1.5rem,4vw,2.25rem)] font-bold leading-tight tracking-tight text-foreground">
+          PWM Playground
         </h1>
-        <p className="mt-1 text-muted-foreground">
-          Flip a switch on and off super fast — that&apos;s how we control brightness and
-          speed.
-        </p>
+
       </header>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        {/* Live signal */}
-        <section className="rounded-[calc(var(--radius)+8px)] border-2 border-border bg-card p-5 shadow-[var(--panel-shadow)]">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold">Live signal</h2>
-            <div className="flex gap-2">
+      {/* Main: scope | controls  — stacks on mobile */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
+        {/* LEFT — Live signal */}
+        <section
+          className={`${panel} flex min-w-0 flex-col gap-6 sm:gap-8 lg:col-span-7`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold tracking-tight sm:text-lg">
+              Live signal
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowAverage((v) => !v)}
-                className="rounded-[calc(var(--radius)+4px)] border-2 border-border bg-transparent px-3.5 py-1.5 font-bold hover:bg-muted"
+                className={btn}
               >
-                {showAverage ? "Hide" : "Show"} average
+                {showAverage ? "Hide average" : "Show average"}
               </button>
               <button
                 type="button"
                 onClick={() => setPlaying((v) => !v)}
-                className="rounded-[calc(var(--radius)+4px)] border-2 border-transparent bg-primary px-3.5 py-1.5 font-extrabold text-primary-foreground hover:brightness-105"
+                className={btnPrimary}
               >
                 {playing ? "⏸ Pause" : "▶ Play"}
               </button>
             </div>
           </div>
-          <WaveCanvas
-            duty={duty}
-            freq={freq}
-            playing={playing}
-            showAverage={showAverage}
-            challengeTarget={challenge?.target ?? null}
-            onDutyChange={setDuty}
-          />
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            Tip: drag right on the wave to make the ON part wider.
-          </p>
+
+          <div className="flex min-w-0 flex-1 items-center justify-center py-1 sm:py-2">
+            <div className="w-full overflow-hidden rounded-2xl ring-1 ring-black/5">
+              <WaveCanvas
+                duty={duty}
+                freq={freq}
+                playing={playing}
+                showAverage={showAverage}
+                challengeTarget={challenge?.target ?? null}
+                onDutyChange={setDuty}
+              />
+            </div>
+          </div>
         </section>
 
-        {/* Right column */}
-        <section className="flex flex-col gap-5">
+        {/* RIGHT — Duty, demos, stats */}
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-5">
           {/* Duty cycle */}
-          <div className="rounded-[calc(var(--radius)+8px)] border-2 border-border bg-card p-5 shadow-[var(--panel-shadow)]">
-            <div className="flex items-end justify-between">
-              <span className="text-lg font-bold">Duty cycle</span>
-              <span className="font-mono text-5xl font-extrabold leading-none text-signal">
-                {duty}%
+          <section className={panel}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-base font-semibold tracking-tight sm:text-lg">
+                Duty cycle
+              </span>
+              <span className="font-mono text-3xl font-semibold tabular-nums tracking-tight text-signal sm:text-4xl">
+                {duty}
+                <span className="ml-0.5 text-lg font-medium text-signal/70 sm:text-xl">
+                  %
+                </span>
               </span>
             </div>
-            <input
-              type="range"
-              className="duty-slider"
-              min={0}
-              max={100}
-              value={duty}
-              aria-label="Duty cycle"
-              onChange={(e) => setDuty(Number(e.target.value))}
-              style={{ ["--fill" as string]: `${duty}%` }}
-            />
-            <div className="mt-5 flex gap-2">
+
+            <div className="apple-slider mt-6 sm:mt-7">
+              <input
+                type="range"
+                className="duty-slider"
+                min={0}
+                max={100}
+                value={duty}
+                aria-label="Duty cycle"
+                onChange={(e) => setDuty(Number(e.target.value))}
+                style={{ ["--fill" as string]: `${duty}%` }}
+              />
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-2">
               {FREQS.map((f) => (
                 <button
                   key={f.value}
                   type="button"
                   onClick={() => setFreq(f.value)}
-                  className={`flex-1 rounded-[calc(var(--radius)+4px)] border-2 px-3.5 py-1.5 font-bold hover:bg-muted ${
+                  className={`rounded-full border px-2 py-2 text-sm font-semibold transition-all duration-200 sm:px-3 ${
                     freq === f.value
-                      ? "border-signal bg-[color-mix(in_oklab,var(--signal)_15%,transparent)] text-signal"
-                      : "border-border bg-transparent"
+                      ? "border-signal/30 bg-[color-mix(in_oklab,var(--signal)_12%,transparent)] text-signal shadow-sm"
+                      : "border-border bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   {f.label}
                 </button>
               ))}
             </div>
-          </div>
+          </section>
 
           <DemoDials duty={duty} playing={playing} />
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-3 rounded-[calc(var(--radius)+8px)] border-2 border-border bg-card p-5 font-mono shadow-[var(--panel-shadow)]">
+          <section className={`${panel} grid grid-cols-2 gap-2 sm:gap-3`}>
             <Stat label="Duty cycle" value={`${duty} %`} />
             <Stat label="Average voltage" value={`${avgV.toFixed(2)} V / 5 V`} />
             <Stat label="ON time" value={`${onMs.toFixed(1)} ms`} />
             <Stat label="OFF time" value={`${offMs.toFixed(1)} ms`} />
+          </section>
+        </div>
+
+        {/* Challenges — full width under both columns */}
+        <section className={`${panel} lg:col-span-12`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold sm:text-lg">Challenges</h2>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {CHALLENGES.map((c) => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() => setChallenge(c)}
+                    className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-bold transition ${
+                      challenge?.label === c.label
+                        ? "border-accent bg-[color-mix(in_oklab,var(--accent)_15%,transparent)] text-accent"
+                        : "border-border bg-card hover:bg-muted"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              {challengeMsg ? (
+                <p className="mt-3 text-sm font-bold sm:text-base">{challengeMsg}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={reset}
+              className="w-full shrink-0 rounded-full border border-transparent bg-secondary px-5 py-2.5 text-sm font-extrabold text-secondary-foreground transition hover:brightness-105 sm:mt-8 sm:w-auto"
+            >
+              ↺ Reset
+            </button>
           </div>
         </section>
-      </div>
-
-      {/* Challenges */}
-      <div className="mt-5 rounded-[calc(var(--radius)+8px)] border-2 border-border bg-card p-5 shadow-[var(--panel-shadow)] lg:max-w-md lg:ml-auto">
-        <h2 className="text-lg font-bold">Challenges</h2>
-        <div className="mt-3 flex flex-col gap-2">
-          {CHALLENGES.map((c) => (
-            <button
-              key={c.label}
-              type="button"
-              onClick={() => setChallenge(c)}
-              className={`w-full rounded-[calc(var(--radius)+4px)] border-2 px-3.5 py-1.5 text-left font-bold hover:bg-muted ${
-                challenge?.label === c.label
-                  ? "border-accent bg-[color-mix(in_oklab,var(--accent)_15%,transparent)] text-accent"
-                  : "border-border bg-transparent"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-        {challengeMsg ? <p className="mt-3 font-bold">{challengeMsg}</p> : null}
-        <button
-          type="button"
-          onClick={reset}
-          className="mt-4 w-full rounded-[calc(var(--radius)+4px)] border-2 border-transparent bg-secondary px-3.5 py-1.5 font-extrabold text-secondary-foreground hover:brightness-105"
-        >
-          ↺ Reset
-        </button>
       </div>
     </div>
   );
@@ -175,11 +202,13 @@ export function PwmPlayground() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-muted p-3">
-      <p className="text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
+    <div className="min-w-0 rounded-xl bg-muted px-3 py-2.5 sm:p-3">
+      <p className="truncate text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground sm:text-[0.7rem]">
         {label}
       </p>
-      <p className="text-xl font-extrabold">{value}</p>
+      <p className="mt-0.5 truncate font-mono text-base font-extrabold tabular-nums sm:text-xl">
+        {value}
+      </p>
     </div>
   );
 }

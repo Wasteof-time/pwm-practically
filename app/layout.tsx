@@ -16,7 +16,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "PWM Playground — See How Duty Cycle Works",
   description:
-    "A hands-on PWM playground: drag the duty cycle, watch the square wave, and see an LED dim, a motor spin and a servo turn.",
+    "",
 };
 
 export default function RootLayout({
