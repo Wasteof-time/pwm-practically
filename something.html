@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PWM Playground — See How Duty Cycle Works</title>
+    <meta
+      name="description"
+      content="A hands-on PWM playground: drag the duty cycle, watch the square wave, and see an LED dim, a motor spin and a servo turn."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=JetBrains+Mono:wght@400..700&display=swap"
+    />
+    <style>
+      :root {
+        --radius: 1rem;
+        --background: oklch(0.19 0.035 250);
+        --foreground: oklch(0.97 0.01 240);
+        --card: oklch(0.24 0.04 252);
+        --primary: oklch(0.82 0.2 145);
+        --primary-foreground: oklch(0.19 0.05 150);
+        --secondary: oklch(0.32 0.05 255);
+        --secondary-foreground: oklch(0.97 0.01 240);
+        --muted: oklch(0.28 0.04 253);
+        --muted-foreground: oklch(0.75 0.03 250);
+        --accent: oklch(0.78 0.17 60);
+        --border: oklch(0.36 0.05 255);
+        --signal: oklch(0.85 0.22 145);
+        --warn: oklch(0.78 0.17 60);
+        --grid: oklch(0.32 0.05 255);
+        --panel-shadow: 0 18px 50px -22px oklch(0 0 0 / 0.75);
+      }
+      body.light {
+        --background: oklch(0.97 0.015 240);
+        --foreground: oklch(0.24 0.04 252);
+        --card: oklch(1 0 0);
+        --primary: oklch(0.62 0.18 148);
+        --primary-foreground: oklch(0.99 0.01 150);
+        --secondary: oklch(0.92 0.02 250);
+        --secondary-foreground: oklch(0.24 0.04 252);
+        --muted: oklch(0.93 0.015 250);
+        --muted-foreground: oklch(0.45 0.03 252);
+        --accent: oklch(0.72 0.16 60);
+        --border: oklch(0.86 0.02 250);
+        --signal: oklch(0.62 0.18 148);
+        --warn: oklch(0.7 0.16 60);
+        --grid: oklch(0.88 0.02 250);
+        --panel-shadow: 0 18px 40px -26px oklch(0 0 0 / 0.35);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        background: var(--background);
+        color: var(--foreground);
+        font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+        padding: 1.5rem 1rem;
+        min-height: 100vh;
+      }
+      .wrap {
+        max-width: 72rem;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+      }
+      h1 {
+        font-size: clamp(1.75rem, 4vw, 2.25rem);
+        letter-spacing: -0.02em;
+      }
+      h1 span {
+        color: var(--signal);
+      }
+      h2 {
+        font-size: 1.125rem;
+      }
+      .sub {
+        margin-top: 0.25rem;
+        color: var(--muted-foreground);
+      }
+      .panel {
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: calc(var(--radius) + 8px);
+        box-shadow: var(--panel-shadow);
+        padding: 1.25rem;
+      }
+      .grid {
+        display: grid;
+        gap: 1.25rem;
+        margin-top: 1.25rem;
+      }
+      @media (min-width: 1024px) {
+        .grid {
+          grid-template-columns: 1.5fr 1fr;
+        }
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+      button {
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: calc(var(--radius) + 4px);
+        border: 2px solid var(--border);
+        background: transparent;
+        color: inherit;
+        padding: 0.45rem 0.9rem;
+      }
+      button:hover {
+        background: var(--muted);
+      }
+      button.primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-color: transparent;
+        font-weight: 800;
+      }
+      button.primary:hover {
+        filter: brightness(1.05);
+        background: var(--primary);
+      }
+      button.reset {
+        background: var(--secondary);
+        color: var(--secondary-foreground);
+        border-color: transparent;
+        width: 100%;
+        margin-top: 1rem;
+        font-weight: 800;
+      }
+      button.active {
+        border-color: var(--signal);
+        background: color-mix(in oklab, var(--signal) 15%, transparent);
+        color: var(--signal);
+      }
+      button.chal {
+        text-align: left;
+        width: 100%;
+      }
+      button.chal.active {
+        border-color: var(--accent);
+        background: color-mix(in oklab, var(--accent) 15%, transparent);
+        color: var(--accent);
+      }
+      canvas {
+        width: 100%;
+        height: 300px;
+        border-radius: 0.75rem;
+        cursor: ew-resize;
+        touch-action: none;
+        display: block;
+      }
+      @media (min-width: 640px) {
+        canvas {
+          height: 380px;
+        }
+      }
+      .tip,
+      .muted {
+        color: var(--muted-foreground);
+      }
+      .tip {
+        margin-top: 0.5rem;
+        text-align: center;
+        font-size: 0.875rem;
+      }
+      .duty-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+      }
+      #dutyVal {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--signal);
+        line-height: 1;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 1.5rem;
+        margin-top: 1rem;
+        border-radius: 999px;
+        outline: none;
+        cursor: pointer;
+        background: linear-gradient(
+          to right,
+          var(--signal) 0%,
+          var(--signal) var(--fill, 50%),
+          var(--muted) var(--fill, 50%),
+          var(--muted) 100%
+        );
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: 999px;
+        background: var(--card);
+        border: 5px solid var(--signal);
+        box-shadow: 0 0 22px -4px var(--signal);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: 999px;
+        background: var(--card);
+        border: 5px solid var(--signal);
+      }
+      .freqs {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+      }
+      .freqs button {
+        flex: 1;
+      }
+      .demos {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+      }
+      .demo {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .dial {
+        position: relative;
+        width: 7rem;
+        height: 7rem;
+        border-radius: 999px;
+        border: 4px solid var(--border);
+        background: var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .bulb {
+        width: 4rem;
+        height: 4rem;
+        border-radius: 999px;
+        background: var(--signal);
+        transition: opacity 0.1s linear;
+      }
+      .demo p {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--muted-foreground);
+        text-align: center;
+      }
+      .rotor {
+        position: relative;
+        width: 5rem;
+        height: 5rem;
+      }
+      .rotor span {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 0.75rem;
+        height: 2.25rem;
+        border-radius: 999px;
+        background: var(--accent);
+        transform-origin: bottom center;
+      }
+      .hub {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 999px;
+        background: var(--foreground);
+        transform: translate(-50%, -50%);
+      }
+      @keyframes spin-motor {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .servo {
+        align-items: flex-end;
+      }
+      .arm {
+        margin-bottom: 1rem;
+        width: 0.625rem;
+        height: 5rem;
+        border-radius: 999px;
+        background: var(--signal);
+        transform-origin: bottom center;
+        transition: transform 0.2s ease-out;
+      }
+      .pivot {
+        position: absolute;
+        bottom: 0.75rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 999px;
+        background: var(--foreground);
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+      }
+      .stat {
+        background: var(--muted);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+      }
+      .stat p:first-child {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted-foreground);
+      }
+      .stat p:last-child {
+        font-size: 1.25rem;
+        font-weight: 800;
+      }
+      .why {
+        margin-top: 0.75rem;
+        background: var(--muted);
+        border-radius: 0.75rem;
+        padding: 1rem;
+      }
+      .chals {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      .hidden {
+        display: none;
+      }
+      strong.on {
+        color: var(--signal);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>PWM Playground <span>⚡</span></h1>
+          <p class="sub">
+            Flip a switch on and off super fast — that's how we control brightness and speed.
+          </p>
+        </div>
+        <button id="theme">☀️ Light mode</button>
+      </header>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="row">
+            <h2>Live signal</h2>
+            <div style="display: flex; gap: 0.5rem">
+              <button id="avgBtn">Hide average</button>
+              <button id="playBtn" class="primary">⏸ Pause</button>
+            </div>
+          </div>
+          <canvas id="wave" aria-label="PWM square wave"></canvas>
+          <p class="tip">Tip: drag right on the wave to make the ON part wider.</p>
+        </section>
+
+        <section class="col">
+          <div class="panel">
+            <div class="duty-head">
+              <span style="font-size: 1.125rem; font-weight: 700">Duty cycle</span>
+              <span id="dutyVal">65%</span>
+            </div>
+            <input id="duty" type="range" min="0" max="100" value="65" aria-label="Duty cycle" />
+            <div class="freqs" id="freqs"></div>
+          </div>
+
+          <div class="panel demos">
+            <div class="demo">
+              <div class="dial" id="ledDial"><div class="bulb" id="bulb"></div></div>
+              <p id="ledLabel">LED · 65% bright</p>
+            </div>
+            <div class="demo">
+              <div class="dial">
+                <div class="rotor" id="rotor">
+                  <span style="transform: translate(-50%, -100%) rotate(0deg)"></span>
+                  <span style="transform: translate(-50%, -100%) rotate(60deg)"></span>
+                  <span style="transform: translate(-50%, -100%) rotate(120deg)"></span>
+                  <span style="transform: translate(-50%, -100%) rotate(180deg)"></span>
+                  <span style="transform: translate(-50%, -100%) rotate(240deg)"></span>
+                  <span style="transform: translate(-50%, -100%) rotate(300deg)"></span>
+                  <span class="hub"></span>
+                </div>
+              </div>
+              <p id="motorLabel">Motor · 65% speed</p>
+            </div>
+            <div class="demo">
+              <div class="dial servo">
+                <div class="arm" id="arm"></div>
+                <span class="pivot"></span>
+              </div>
+              <p id="servoLabel">Servo · 27°</p>
+            </div>
+          </div>
+
+          <div class="panel stats">
+            <div class="stat"><p>Duty cycle</p><p id="sDuty"></p></div>
+            <div class="stat"><p>Average voltage</p><p id="sAvg"></p></div>
+            <div class="stat"><p>ON time</p><p id="sOn"></p></div>
+            <div class="stat"><p>OFF time</p><p id="sOff"></p></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <h2>What's going on?</h2>
+          <p class="muted" style="margin-top: 0.5rem">
+            The signal is only ever fully <strong class="on">ON</strong> or fully
+            <strong>OFF</strong> — but it switches so fast that your eyes only see the average. More
+            ON time = brighter and faster.
+          </p>
+          <button id="whyBtn" style="margin-top: 0.75rem">Why does this work? 🤔</button>
+          <p class="why hidden" id="why">
+            Imagine flicking a water faucet all the way on and all the way off, over and over,
+            really fast. If it's on half the time, you still fill the bucket — just half as quickly.
+            PWM does the same thing with electricity.
+          </p>
+        </div>
+
+        <div class="panel">
+          <h2>Challenges</h2>
+          <div class="chals" id="chals"></div>
+          <p id="chalMsg" style="margin-top: 0.75rem; font-weight: 700"></p>
+          <button class="reset" id="resetBtn">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const FREQS = [
+        { label: "Slow", value: 1 },
+        { label: "Medium", value: 4 },
+        { label: "Fast", value: 20 },
+      ];
+      const CHALLENGES = [
+        { label: "Make the LED half-bright", target: 50 },
+        { label: "Make the motor spin slowly", target: 20 },
+        { label: "Match this wave", target: 75 },
+      ];
+      const CYCLES = 4;
+
+      const state = { duty: 65, freq: 4, playing: true, showAverage: true, challenge: null, phase: 0 };
+
+      const $ = (id) => document.getElementById(id);
+      const canvas = $("wave");
+      const ctx = canvas.getContext("2d");
+
+      // frequency buttons
+      FREQS.forEach((f) => {
+        const b = document.createElement("button");
+        b.textContent = f.label;
+        b.dataset.freq = f.value;
+        b.onclick = () => {
+          state.freq = f.value;
+          render();
+        };
+        $("freqs").appendChild(b);
+      });
+      // challenge buttons
+      CHALLENGES.forEach((c) => {
+        const b = document.createElement("button");
+        b.className = "chal";
+        b.textContent = c.label;
+        b.dataset.label = c.label;
+        b.onclick = () => {
+          state.challenge = c;
+          render();
+        };
+        $("chals").appendChild(b);
+      });
+
+      $("duty").addEventListener("input", (e) => {
+        state.duty = Number(e.target.value);
+        render();
+      });
+      $("playBtn").onclick = () => {
+        state.playing = !state.playing;
+        render();
+      };
+      $("avgBtn").onclick = () => {
+        state.showAverage = !state.showAverage;
+        render();
+      };
+      $("whyBtn").onclick = () => {
+        const w = $("why");
+        w.classList.toggle("hidden");
+        $("whyBtn").textContent = w.classList.contains("hidden") ? "Why does this work? 🤔" : "Got it!";
+      };
+      $("theme").onclick = () => {
+        const light = document.body.classList.toggle("light");
+        $("theme").textContent = light ? "🌙 Dark mode" : "☀️ Light mode";
+      };
+      $("resetBtn").onclick = () => {
+        Object.assign(state, { duty: 50, freq: 4, playing: true, challenge: null });
+        $("duty").value = 50;
+        render();
+      };
+
+      function render() {
+        const d = state.duty / 100;
+        const period = 1000 / state.freq;
+        const onMs = (period * state.duty) / 100;
+
+        $("dutyVal").textContent = state.duty + "%";
+        $("duty").style.setProperty("--fill", state.duty + "%");
+        $("playBtn").textContent = state.playing ? "⏸ Pause" : "▶ Play";
+        $("avgBtn").textContent = (state.showAverage ? "Hide" : "Show") + " average";
+
+        [...$("freqs").children].forEach((b) =>
+          b.classList.toggle("active", Number(b.dataset.freq) === state.freq),
+        );
+        [...$("chals").children].forEach((b) =>
+          b.classList.toggle("active", state.challenge && b.dataset.label === state.challenge.label),
+        );
+
+        // LED
+        $("bulb").style.opacity = 0.08 + 0.92 * d;
+        $("ledDial").style.boxShadow = `0 0 ${40 * d + 4}px ${10 * d}px color-mix(in oklab, var(--signal) ${Math.round(75 * d)}%, transparent)`;
+        $("ledLabel").textContent = `LED · ${state.duty}% bright`;
+
+        // Motor
+        const spinning = state.playing && d > 0.05;
+        $("rotor").style.animation = spinning
+          ? `spin-motor ${Math.max(0.12, 2.2 - d * 2.05)}s linear infinite`
+          : "none";
+        $("motorLabel").textContent = `Motor · ${state.duty}% speed`;
+
+        // Servo
+        const angle = -90 + d * 180;
+        $("arm").style.transform = `rotate(${angle}deg)`;
+        $("servoLabel").textContent = `Servo · ${Math.round(angle)}°`;
+
+        // Stats
+        $("sDuty").textContent = state.duty + " %";
+        $("sAvg").textContent = (5 * d).toFixed(2) + " V / 5 V";
+        $("sOn").textContent = onMs.toFixed(1) + " ms";
+        $("sOff").textContent = (period - onMs).toFixed(1) + " ms";
+
+        // Challenge message
+        const msg = $("chalMsg");
+        if (state.challenge) {
+          const diff = Math.abs(state.duty - state.challenge.target);
+          msg.textContent =
+            diff <= 3
+              ? "🎉 Nailed it! That's the target duty cycle."
+              : `Target shown as the dashed wave — keep sliding! (you're ${diff}% away)`;
+        } else msg.textContent = "";
+      }
+
+      const color = (n) => getComputedStyle(canvas).getPropertyValue(n).trim() || "#0f0";
+
+      function drawWave(d, padL, cycleW, offset, hi, lo) {
+        let started = false;
+        for (let i = -1; i <= CYCLES + 1; i++) {
+          const x = padL + offset + i * cycleW;
+          const onEnd = x + cycleW * d;
+          const yStart = d > 0 ? hi : lo;
+          if (!started) {
+            ctx.moveTo(x, yStart);
+            started = true;
+          } else ctx.lineTo(x, yStart);
+          if (d > 0) ctx.lineTo(onEnd, hi);
+          if (d < 1) {
+            ctx.lineTo(onEnd, lo);
+            ctx.lineTo(x + cycleW, lo);
+          }
+        }
+      }
+
+      let last = performance.now();
+      function frame(now) {
+        const dt = (now - last) / 1000;
+        last = now;
+        if (state.playing) state.phase = (state.phase + dt * Math.min(state.freq, 2) * 0.25) % 1;
+
+        const dpr = window.devicePixelRatio || 1;
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+          canvas.width = w * dpr;
+          canvas.height = h * dpr;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        const padL = 56,
+          padR = 20,
+          top = 28,
+          bottom = h - 40;
+        const plotW = w - padL - padR;
+        const hi = top,
+          lo = bottom;
+
+        ctx.strokeStyle = color("--grid");
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) {
+          const x = padL + (plotW * i) / 10;
+          ctx.beginPath();
+          ctx.moveTo(x, top - 10);
+          ctx.lineTo(x, bottom + 10);
+          ctx.stroke();
+        }
+        for (let i = 0; i <= 4; i++) {
+          const y = top + ((bottom - top) * i) / 4;
+          ctx.beginPath();
+          ctx.moveTo(padL, y);
+          ctx.lineTo(w - padR, y);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = color("--muted-foreground");
+        ctx.font = "600 13px ui-monospace, monospace";
+        ctx.textAlign = "right";
+        ctx.fillText("5V", padL - 10, hi + 5);
+        ctx.fillText("0V", padL - 10, lo + 5);
+
+        const cycleW = plotW / CYCLES;
+        const offset = -state.phase * cycleW;
+        const d = state.duty / 100;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(padL, 0, plotW, h);
+        ctx.clip();
+
+        if (state.challenge) {
+          ctx.strokeStyle = color("--warn");
+          ctx.setLineDash([6, 6]);
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          drawWave(state.challenge.target / 100, padL, cycleW, offset, hi, lo);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        ctx.strokeStyle = color("--signal");
+        ctx.lineWidth = 6;
+        ctx.lineJoin = "round";
+        ctx.shadowColor = color("--signal");
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        drawWave(d, padL, cycleW, offset, hi, lo);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+
+        if (state.showAverage) {
+          const y = lo - (lo - hi) * d;
+          ctx.strokeStyle = color("--warn");
+          ctx.setLineDash([10, 8]);
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(padL, y);
+          ctx.lineTo(w - padR, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = color("--warn");
+          ctx.textAlign = "left";
+          ctx.font = "700 13px ui-monospace, monospace";
+          ctx.fillText(`average ${(5 * d).toFixed(2)} V`, padL + 8, y - 8);
+        }
+
+        const x0 = padL + offset + cycleW;
+        ctx.textAlign = "center";
+        ctx.font = "700 13px ui-monospace, monospace";
+        if (d > 0.12) {
+          ctx.fillStyle = color("--signal");
+          ctx.fillText("ON", x0 + (cycleW * d) / 2, hi - 10);
+        }
+        if (d < 0.88) {
+          ctx.fillStyle = color("--muted-foreground");
+          ctx.fillText("OFF", x0 + cycleW * d + (cycleW * (1 - d)) / 2, lo + 22);
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+
+      // drag on canvas to set duty
+      let dragging = false;
+      const updateFromPointer = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const padL = 56;
+        const plotW = rect.width - padL - 20;
+        const cycleW = plotW / CYCLES;
+        const x = e.clientX - rect.left - padL + state.phase * cycleW;
+        const within = ((x % cycleW) + cycleW) % cycleW;
+        state.duty = Math.round(Math.min(100, Math.max(0, (within / cycleW) * 100)));
+        $("duty").value = state.duty;
+        render();
+      };
+      canvas.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        canvas.setPointerCapture(e.pointerId);
+        updateFromPointer(e);
+      });
+      canvas.addEventListener("pointermove", (e) => dragging && updateFromPointer(e));
+      window.addEventListener("pointerup", () => (dragging = false));
+
+      render();
+    </script>
+  </body>
+</html>
