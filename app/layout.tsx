@@ -14,9 +14,14 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PWM Playground — See How Duty Cycle Works",
+  title: "PWM Playground — Robotics Club VITC",
   description:
-    "",
+    "A hands-on PWM playground by Robotics Club VITC: duty cycle, square wave, LED, motor and servo demos.",
+  icons: {
+    icon: [{ url: "/rclogo.webp", type: "image/webp" }],
+    apple: [{ url: "/rclogo.webp", type: "image/webp" }],
+    shortcut: "/rclogo.webp",
+  },
 };
 
 export default function RootLayout({

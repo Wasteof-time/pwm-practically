@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
 import { DemoDials } from "./DemoDials";
 import { WaveCanvas } from "./WaveCanvas";
@@ -54,10 +55,25 @@ export function PwmPlayground() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col gap-3 px-3 py-3 sm:gap-4 sm:px-5 sm:py-4 lg:h-dvh lg:min-h-0 lg:overflow-hidden lg:px-6">
       {/* Header */}
-      <header className="shrink-0">
-        <h1 className="text-[clamp(1.35rem,3vw,2rem)] font-bold leading-none tracking-tight text-foreground">
-          PWM Playground
-        </h1>
+      <header className="flex shrink-0 items-center gap-3 sm:gap-4">
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[22%] bg-card shadow-sm ring-1 ring-black/5 sm:h-12 sm:w-12">
+          <Image
+            src="/rclogo.webp"
+            alt="Robotics Club VITC"
+            width={48}
+            height={48}
+            priority
+            className="h-full w-full object-cover"
+          />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-[clamp(1.35rem,3vw,2rem)] font-bold leading-none tracking-tight text-foreground">
+            PWM Playground
+          </h1>
+          <p className="mt-1 truncate text-xs font-medium text-muted-foreground sm:text-sm">
+            by Robotics Club VITC
+          </p>
+        </div>
       </header>
 
       {/* Main workspace — fills remaining height */}
@@ -68,7 +84,7 @@ export function PwmPlayground() {
         >
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold tracking-tight sm:text-lg">
-              Live signal
+              Oscilloscope
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               <button
