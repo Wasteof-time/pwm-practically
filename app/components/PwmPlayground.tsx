@@ -5,19 +5,54 @@ import { useCallback, useMemo, useState } from "react";
 import { DemoDials } from "./DemoDials";
 import { WaveCanvas } from "./WaveCanvas";
 
-const FREQS = [
-  { label: "Slow", value: 1 },
-  { label: "Medium", value: 4 },
-  { label: "Fast", value: 20 },
-] as const;
+const FREQ_MIN = 1;
+const FREQ_MAX = 20;
+const AMP_MIN = 3;
+const AMP_MAX = 15;
+const AMP_DEFAULT = 5;
+/** Full-scale average used for LED/motor demos (matches scope). */
+const AMP_SCALE_MAX = 15;
 
+/**
+ * Challenges:
+ * - avgV: hit a target average voltage (duty adjusts when amplitude changes)
+ * - duty: match a fixed duty cycle on the dashed wave
+ */
 const CHALLENGES = [
-  { label: "Make the LED half-bright", target: 50 },
-  { label: "Make the motor spin slowly", target: 20 },
-  { label: "Match this wave", target: 75 },
+  {
+    id: "led-half",
+    label: "Make the LED half-bright",
+    mode: "avgV" as const,
+    /** Half of max brightness → 50% of 15 V scale */
+    targetAvgV: AMP_SCALE_MAX * 0.5,
+  },
+  {
+    id: "motor-slow",
+    label: "Make the motor spin slowly",
+    mode: "avgV" as const,
+    /** ~20% of max drive (same idea as the old 20% duty challenge) */
+    targetAvgV: AMP_SCALE_MAX * 0.2,
+  },
+  {
+    id: "match-wave",
+    label: "Match this wave",
+    mode: "duty" as const,
+    targetDuty: 75,
+  },
 ] as const;
 
 type Challenge = (typeof CHALLENGES)[number];
+
+/** Duty % needed for target average voltage at the current amplitude. */
+function dutyForTargetAvgV(targetAvgV: number, amp: number): number {
+  if (amp <= 0) return 0;
+  return Math.round(Math.min(100, Math.max(0, (targetAvgV / amp) * 100)));
+}
+
+function challengeTargetDuty(c: Challenge, amp: number): number {
+  if (c.mode === "avgV") return dutyForTargetAvgV(c.targetAvgV, amp);
+  return c.targetDuty;
+}
 
 const panel =
   "rounded-2xl border border-border/80 bg-card p-4 shadow-[var(--panel-shadow)] sm:p-5";
@@ -29,6 +64,7 @@ const btnPrimary =
 export function PwmPlayground() {
   const [duty, setDuty] = useState(65);
   const [freq, setFreq] = useState(4);
+  const [amplitude, setAmplitude] = useState(AMP_DEFAULT);
   const [playing, setPlaying] = useState(true);
   const [showAverage, setShowAverage] = useState(true);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
@@ -36,18 +72,40 @@ export function PwmPlayground() {
   const period = 1000 / freq;
   const onMs = (period * duty) / 100;
   const offMs = period - onMs;
-  const avgV = (5 * duty) / 100;
+  const avgV = (amplitude * duty) / 100;
+
+  /** Duty the dashed target wave should show (updates with amplitude for avgV challenges). */
+  const challengeDuty = useMemo(() => {
+    if (!challenge) return null;
+    return challengeTargetDuty(challenge, amplitude);
+  }, [challenge, amplitude]);
 
   const challengeMsg = useMemo(() => {
-    if (!challenge) return "";
-    const diff = Math.abs(duty - challenge.target);
-    if (diff <= 3) return "🎉 Nailed it! That's the target duty cycle.";
-    return `Target shown as the dashed wave — keep sliding! (you're ${diff}% away)`;
-  }, [challenge, duty]);
+    if (!challenge || challengeDuty == null) return "";
+
+    if (challenge.mode === "avgV") {
+      const targetV = challenge.targetAvgV;
+      // Need peak ≥ target average, otherwise impossible even at 100% duty
+      if (amplitude + 1e-6 < targetV) {
+        return `Raise amplitude to at least ${targetV.toFixed(1)} V — then set duty near ${dutyForTargetAvgV(targetV, Math.max(amplitude, targetV))}%.`;
+      }
+      const vDiff = Math.abs(avgV - targetV);
+      if (vDiff <= 0.3) {
+        return `🎉 Nailed it! Average voltage is ~${targetV.toFixed(1)} V.`;
+      }
+      return `Target V_avg ${targetV.toFixed(1)} V → duty ~${challengeDuty}% at ${amplitude.toFixed(1)} V peak (you're ${vDiff.toFixed(2)} V away).`;
+    }
+
+    // Fixed duty-cycle wave match
+    const dDiff = Math.abs(duty - challenge.targetDuty);
+    if (dDiff <= 3) return "🎉 Nailed it! That's the target duty cycle.";
+    return `Target duty ${challenge.targetDuty}% — keep sliding! (you're ${dDiff}% away)`;
+  }, [challenge, challengeDuty, amplitude, avgV, duty]);
 
   const reset = useCallback(() => {
     setDuty(50);
     setFreq(4);
+    setAmplitude(AMP_DEFAULT);
     setPlaying(true);
     setChallenge(null);
   }, []);
@@ -108,62 +166,120 @@ export function PwmPlayground() {
             <WaveCanvas
               duty={duty}
               freq={freq}
+              amplitude={amplitude}
               playing={playing}
               showAverage={showAverage}
-              challengeTarget={challenge?.target ?? null}
+              challengeTarget={challengeDuty}
               onDutyChange={setDuty}
             />
           </div>
         </section>
 
-        {/* MIDDLE — Duty + demos (same height as scope) */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-3 sm:gap-4 lg:col-span-4 lg:h-full">
-          <section className={`${panel} shrink-0`}>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-base font-semibold tracking-tight sm:text-lg">
-                Duty cycle
-              </span>
-              <span className="font-mono text-3xl font-semibold tabular-nums tracking-tight text-signal sm:text-4xl">
-                {duty}
-                <span className="ml-0.5 text-lg font-medium text-signal/70 sm:text-xl">
-                  %
+        {/* MIDDLE — Duty, frequency, compact demos */}
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 sm:gap-3 lg:col-span-4 lg:h-full">
+          <section className={`${panel} shrink-0 space-y-4 sm:space-y-5`}>
+            {/* Duty cycle */}
+            <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-semibold tracking-tight sm:text-base">
+                  Duty cycle
                 </span>
-              </span>
+                <span className="font-mono text-2xl font-semibold tabular-nums tracking-tight text-signal sm:text-3xl">
+                  {duty}
+                  <span className="ml-0.5 text-sm font-medium text-signal/70 sm:text-base">
+                    %
+                  </span>
+                </span>
+              </div>
+              <div className="apple-slider mt-3 sm:mt-4">
+                <input
+                  type="range"
+                  className="duty-slider"
+                  min={0}
+                  max={100}
+                  value={duty}
+                  aria-label="Duty cycle"
+                  onChange={(e) => setDuty(Number(e.target.value))}
+                  style={{ ["--fill" as string]: `${duty}%` }}
+                />
+              </div>
             </div>
 
-            <div className="apple-slider mt-5 sm:mt-6">
-              <input
-                type="range"
-                className="duty-slider"
-                min={0}
-                max={100}
-                value={duty}
-                aria-label="Duty cycle"
-                onChange={(e) => setDuty(Number(e.target.value))}
-                style={{ ["--fill" as string]: `${duty}%` }}
-              />
+            {/* Frequency — packs / spreads waves on the scope */}
+            <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-semibold tracking-tight sm:text-base">
+                  Frequency
+                </span>
+                <span className="font-mono text-xl font-semibold tabular-nums tracking-tight text-accent sm:text-2xl">
+                  {freq}
+                  <span className="ml-0.5 text-sm font-medium text-accent/70 sm:text-base">
+                    Hz
+                  </span>
+                </span>
+              </div>
+              <div className="apple-slider mt-3 sm:mt-4">
+                <input
+                  type="range"
+                  className="duty-slider"
+                  min={FREQ_MIN}
+                  max={FREQ_MAX}
+                  step={1}
+                  value={freq}
+                  aria-label="Frequency"
+                  onChange={(e) => setFreq(Number(e.target.value))}
+                  style={{
+                    ["--fill" as string]: `${
+                      ((freq - FREQ_MIN) / (FREQ_MAX - FREQ_MIN)) * 100
+                    }%`,
+                  }}
+                />
+              </div>
+              <div className="mt-1.5 flex justify-between text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span>Farther</span>
+                <span>Closer</span>
+              </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {FREQS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => setFreq(f.value)}
-                  className={`rounded-full border px-2 py-2 text-sm font-semibold transition-all duration-200 sm:px-3 ${
-                    freq === f.value
-                      ? "border-signal/30 bg-[color-mix(in_oklab,var(--signal)_12%,transparent)] text-signal shadow-sm"
-                      : "border-border bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+            {/* Amplitude — peak ON voltage (scope height) */}
+            <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-semibold tracking-tight sm:text-base">
+                  Amplitude
+                </span>
+                <span className="font-mono text-xl font-semibold tabular-nums tracking-tight text-primary sm:text-2xl">
+                  {amplitude.toFixed(1)}
+                  <span className="ml-0.5 text-sm font-medium text-primary/70 sm:text-base">
+                    V
+                  </span>
+                </span>
+              </div>
+              <div className="apple-slider mt-3 sm:mt-4">
+                <input
+                  type="range"
+                  className="duty-slider"
+                  min={AMP_MIN}
+                  max={AMP_MAX}
+                  step={0.1}
+                  value={amplitude}
+                  aria-label="Amplitude"
+                  onChange={(e) => setAmplitude(Number(e.target.value))}
+                  style={{
+                    ["--fill" as string]: `${
+                      ((amplitude - AMP_MIN) / (AMP_MAX - AMP_MIN)) * 100
+                    }%`,
+                  }}
+                />
+              </div>
+              <div className="mt-1.5 flex justify-between text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span>{AMP_MIN} V</span>
+                <span>{AMP_MAX} V</span>
+              </div>
             </div>
           </section>
 
           <div className="min-h-0 flex-1">
-            <DemoDials duty={duty} playing={playing} fill />
+            <DemoDials duty={duty} amplitude={amplitude} playing={playing} />
           </div>
         </div>
 
@@ -176,7 +292,13 @@ export function PwmPlayground() {
           </h2>
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <Stat label="Duty cycle" value={`${duty} %`} />
-            <Stat label="Average voltage" value={`${avgV.toFixed(2)} V`} sub="/ 5 V" />
+            <Stat label="Frequency" value={`${freq} Hz`} />
+            <Stat label="Amplitude" value={`${amplitude.toFixed(1)} V`} />
+            <Stat
+              label="Average voltage"
+              value={`${avgV.toFixed(2)} V`}
+              sub={`/ ${amplitude.toFixed(1)} V`}
+            />
             <Stat label="ON time" value={`${onMs.toFixed(1)} ms`} />
             <Stat label="OFF time" value={`${offMs.toFixed(1)} ms`} />
           </div>
@@ -189,20 +311,33 @@ export function PwmPlayground() {
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold sm:text-lg">Challenges</h2>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {CHALLENGES.map((c) => (
-                <button
-                  key={c.label}
-                  type="button"
-                  onClick={() => setChallenge(c)}
-                  className={`rounded-xl border-2 px-3 py-2 text-left text-sm font-semibold transition ${
-                    challenge?.label === c.label
-                      ? "border-accent bg-[color-mix(in_oklab,var(--accent)_15%,transparent)] text-accent"
-                      : "border-border bg-card hover:bg-muted"
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
+              {CHALLENGES.map((c) => {
+                const neededDuty = challengeTargetDuty(c, amplitude);
+                const active = challenge?.id === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setChallenge(c)}
+                    className={`rounded-xl border-2 px-3 py-2 text-left text-sm font-semibold transition ${
+                      active
+                        ? "border-accent bg-[color-mix(in_oklab,var(--accent)_15%,transparent)] text-accent"
+                        : "border-border bg-card hover:bg-muted"
+                    }`}
+                  >
+                    <span className="block">{c.label}</span>
+                    <span
+                      className={`mt-0.5 block text-[0.7rem] font-medium ${
+                        active ? "text-accent/80" : "text-muted-foreground"
+                      }`}
+                    >
+                      {c.mode === "avgV"
+                        ? `Target ${c.targetAvgV.toFixed(1)} V_avg · duty ~${neededDuty}%`
+                        : `Target duty ${c.targetDuty}%`}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
             {challengeMsg ? (
               <p className="mt-2 text-sm font-semibold sm:text-base">{challengeMsg}</p>

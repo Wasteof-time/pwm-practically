@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-const CYCLES = 4;
+/** Map frequency (Hz) → how many periods fit on the scope (closer waves at higher f). */
+function cyclesFromFreq(freq: number) {
+  return Math.min(10, Math.max(2, 1.75 + freq * 0.325));
+}
 
 /** Classic scope look: black CRT + electric green trace + saffron average */
 const SCOPE = {
@@ -14,9 +17,14 @@ const SCOPE = {
   offLabel: "#5a6a5a",
 } as const;
 
+/** Fixed vertical scale (matches amplitude slider max). */
+export const AMP_SCALE_MAX = 15;
+
 export type WaveCanvasProps = {
   duty: number;
   freq: number;
+  /** Peak voltage of the PWM high level (volts). */
+  amplitude: number;
   playing: boolean;
   showAverage: boolean;
   challengeTarget: number | null;
@@ -26,6 +34,7 @@ export type WaveCanvasProps = {
 export function WaveCanvas({
   duty,
   freq,
+  amplitude,
   playing,
   showAverage,
   challengeTarget,
@@ -38,13 +47,22 @@ export function WaveCanvas({
   const propsRef = useRef({
     duty,
     freq,
+    amplitude,
     playing,
     showAverage,
     challengeTarget,
     onDutyChange,
   });
 
-  propsRef.current = { duty, freq, playing, showAverage, challengeTarget, onDutyChange };
+  propsRef.current = {
+    duty,
+    freq,
+    amplitude,
+    playing,
+    showAverage,
+    challengeTarget,
+    onDutyChange,
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -62,9 +80,11 @@ export function WaveCanvas({
       offset: number,
       hi: number,
       lo: number,
+      cycles: number,
     ) => {
       let started = false;
-      for (let i = -1; i <= CYCLES + 1; i++) {
+      const span = Math.ceil(cycles) + 2;
+      for (let i = -1; i <= span; i++) {
         const x = padL + offset + i * cycleW;
         const onEnd = x + cycleW * d;
         const yStart = d > 0 ? hi : lo;
@@ -88,7 +108,8 @@ export function WaveCanvas({
       const dt = (now - lastRef.current) / 1000;
       lastRef.current = now;
       if (p.playing) {
-        phaseRef.current = (phaseRef.current + dt * Math.min(p.freq, 2) * 0.25) % 1;
+        phaseRef.current =
+          (phaseRef.current + dt * Math.min(p.freq, 8) * 0.18) % 1;
       }
 
       const dpr = window.devicePixelRatio || 1;
@@ -116,8 +137,11 @@ export function WaveCanvas({
       const top = 28;
       const bottom = h - 40;
       const plotW = w - padL - padR;
-      const hi = top;
       const lo = bottom;
+      // Fixed 0…AMP_SCALE_MAX volt scale so amplitude changes visible height
+      const amp = Math.max(0.1, p.amplitude);
+      const hi = lo - (lo - top) * (amp / AMP_SCALE_MAX);
+      const fullHi = top; // 15 V line
 
       ctx.strokeStyle = SCOPE.grid;
       ctx.lineWidth = 1;
@@ -136,13 +160,31 @@ export function WaveCanvas({
         ctx.stroke();
       }
 
-      ctx.fillStyle = SCOPE.label;
-      ctx.font = "600 13px ui-monospace, monospace";
-      ctx.textAlign = "right";
-      ctx.fillText("5V", padL - 10, hi + 5);
-      ctx.fillText("0V", padL - 10, lo + 5);
+      // Peak amplitude guide (subtle)
+      if (amp < AMP_SCALE_MAX - 0.05) {
+        ctx.strokeStyle = "rgba(0, 255, 65, 0.2)";
+        ctx.setLineDash([4, 6]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padL, hi);
+        ctx.lineTo(w - padR, hi);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
-      const cycleW = plotW / CYCLES;
+      ctx.fillStyle = SCOPE.label;
+      ctx.font = "600 12px ui-monospace, monospace";
+      ctx.textAlign = "right";
+      ctx.fillText(`${AMP_SCALE_MAX}V`, padL - 8, fullHi + 4);
+      ctx.fillStyle = SCOPE.signal;
+      ctx.font = "700 12px ui-monospace, monospace";
+      ctx.fillText(`${amp.toFixed(1)}V`, padL - 8, hi + 4);
+      ctx.fillStyle = SCOPE.label;
+      ctx.font = "600 12px ui-monospace, monospace";
+      ctx.fillText("0V", padL - 8, lo + 4);
+
+      const cycles = cyclesFromFreq(p.freq);
+      const cycleW = plotW / cycles;
       const offset = -phaseRef.current * cycleW;
       const d = p.duty / 100;
 
@@ -156,7 +198,7 @@ export function WaveCanvas({
         ctx.setLineDash([6, 6]);
         ctx.lineWidth = 3;
         ctx.beginPath();
-        drawWave(p.challengeTarget / 100, padL, cycleW, offset, hi, lo);
+        drawWave(p.challengeTarget / 100, padL, cycleW, offset, hi, lo, cycles);
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -167,13 +209,14 @@ export function WaveCanvas({
       ctx.shadowColor = SCOPE.signal;
       ctx.shadowBlur = 18;
       ctx.beginPath();
-      drawWave(d, padL, cycleW, offset, hi, lo);
+      drawWave(d, padL, cycleW, offset, hi, lo, cycles);
       ctx.stroke();
       ctx.shadowBlur = 0;
       ctx.restore();
 
       if (p.showAverage) {
-        const y = lo - (lo - hi) * d;
+        const avg = amp * d;
+        const y = lo - (lo - top) * (avg / AMP_SCALE_MAX);
         ctx.strokeStyle = SCOPE.saffron;
         ctx.setLineDash([10, 8]);
         ctx.lineWidth = 3;
@@ -185,17 +228,17 @@ export function WaveCanvas({
         ctx.fillStyle = SCOPE.saffron;
         ctx.textAlign = "left";
         ctx.font = "700 13px ui-monospace, monospace";
-        ctx.fillText(`average ${(5 * d).toFixed(2)} V`, padL + 8, y - 8);
+        ctx.fillText(`average ${avg.toFixed(2)} V`, padL + 8, y - 8);
       }
 
       const x0 = padL + offset + cycleW;
       ctx.textAlign = "center";
       ctx.font = "700 13px ui-monospace, monospace";
-      if (d > 0.12) {
+      if (d > 0.12 && cycleW * d > 28) {
         ctx.fillStyle = SCOPE.signal;
         ctx.fillText("ON", x0 + (cycleW * d) / 2, hi - 10);
       }
-      if (d < 0.88) {
+      if (d < 0.88 && cycleW * (1 - d) > 28) {
         ctx.fillStyle = SCOPE.offLabel;
         ctx.fillText("OFF", x0 + cycleW * d + (cycleW * (1 - d)) / 2, lo + 22);
       }
@@ -217,7 +260,8 @@ export function WaveCanvas({
       const rect = canvas.getBoundingClientRect();
       const padL = 56;
       const plotW = rect.width - padL - 20;
-      const cycleW = plotW / CYCLES;
+      const cycles = cyclesFromFreq(propsRef.current.freq);
+      const cycleW = plotW / cycles;
       const x = e.clientX - rect.left - padL + phaseRef.current * cycleW;
       const within = ((x % cycleW) + cycleW) % cycleW;
       const next = Math.round(Math.min(100, Math.max(0, (within / cycleW) * 100)));

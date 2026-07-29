@@ -1,59 +1,63 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
+
+/** Max amplitude on the playground scale (matches scope). */
+const AMP_SCALE_MAX = 15;
 
 type DemoDialsProps = {
   duty: number;
+  /** Peak PWM voltage (volts). */
+  amplitude: number;
   playing: boolean;
-  /** Stretch to fill parent height (desktop column layout). */
-  fill?: boolean;
 };
 
-export function DemoDials({ duty, playing, fill = false }: DemoDialsProps) {
-  const d = duty / 100;
-  // Speedometer: -90° (left) at 0% → 0° (up) at 50% → +90° (right) at 100%
-  const servoAngle = -90 + d * 180;
-  const spinning = playing && d > 0.05;
-  const spinDuration = Math.max(0.12, 2.2 - d * 2.05);
+export function DemoDials({ duty, amplitude, playing }: DemoDialsProps) {
+  const dutyFrac = duty / 100;
+  const avgV = amplitude * dutyFrac;
+  const drive = Math.min(1, Math.max(0, avgV / AMP_SCALE_MAX));
+  const servoAngle = -90 + dutyFrac * 180;
+  const spinning = playing && drive > 0.03;
+  const spinDuration = Math.max(0.12, 2.2 - drive * 2.05);
+  const brightPct = Math.round(drive * 100);
+  const speedPct = Math.round(drive * 100);
 
   return (
-    <section
-      className={`rounded-2xl border border-border/80 bg-card p-3 shadow-[var(--panel-shadow)] sm:p-5 ${
-        fill ? "flex h-full min-h-0 flex-col" : ""
-      }`}
-    >
-      <div
-        className={`grid grid-cols-3 gap-2 sm:gap-3 ${
-          fill ? "min-h-0 flex-1 content-center" : ""
-        }`}
-      >
+    /* Outer pad still fills remaining column height */
+    <section className="flex h-full min-h-0 w-full flex-col rounded-2xl border border-border/80 bg-card p-3 shadow-[var(--panel-shadow)] sm:p-5">
+      <div className="grid min-h-0 flex-1 grid-cols-3 gap-2 sm:gap-4">
         {/* LED */}
-        <div className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3">
+        <DemoCell
+          label={`LED · ${brightPct}%`}
+          sub={
+            <>
+              {avgV.toFixed(2)} V<sub>avg</sub>
+            </>
+          }
+        >
           <div
-            className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-full border-4 border-border bg-muted ${
-              fill ? "max-w-[min(100%,9rem)]" : "max-w-[7rem]"
-            }`}
+            className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-[3px] border-border bg-muted"
             style={{
-              boxShadow: `0 0 ${40 * d + 4}px ${10 * d}px color-mix(in oklab, var(--signal) ${Math.round(75 * d)}%, transparent)`,
+              boxShadow: `0 0 ${28 * drive + 2}px ${8 * drive}px color-mix(in oklab, var(--signal) ${Math.round(75 * drive)}%, transparent)`,
             }}
           >
             <div
               className="h-[55%] w-[55%] rounded-full bg-signal transition-opacity duration-100"
-              style={{ opacity: 0.08 + 0.92 * d }}
+              style={{ opacity: 0.08 + 0.92 * drive }}
             />
           </div>
-          <p className="w-full truncate text-center text-[0.65rem] font-bold text-muted-foreground sm:text-[0.8rem]">
-            LED · {duty}% bright
-          </p>
-        </div>
+        </DemoCell>
 
         {/* Motor */}
-        <div className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3">
-          <div
-            className={`relative aspect-square w-full overflow-hidden rounded-full border-4 border-border bg-muted ${
-              fill ? "max-w-[min(100%,9rem)]" : "max-w-[7rem]"
-            }`}
-          >
+        <DemoCell
+          label={`Motor · ${speedPct}%`}
+          sub={
+            <>
+              {avgV.toFixed(2)} V<sub>avg</sub>
+            </>
+          }
+        >
+          <div className="relative h-full w-full overflow-hidden rounded-full border-[3px] border-border bg-muted">
             <div className="absolute inset-0 flex items-center justify-center">
               <div
                 className={`relative h-[72%] w-[72%] ${spinning ? "motor-spin" : ""}`}
@@ -79,18 +83,11 @@ export function DemoDials({ duty, playing, fill = false }: DemoDialsProps) {
             </div>
             <span className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[18%] w-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-sm" />
           </div>
-          <p className="w-full truncate text-center text-[0.65rem] font-bold text-muted-foreground sm:text-[0.8rem]">
-            Motor · {duty}% speed
-          </p>
-        </div>
+        </DemoCell>
 
         {/* Servo */}
-        <div className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3">
-          <div
-            className={`relative aspect-square w-full overflow-hidden rounded-full border-4 border-border bg-muted ${
-              fill ? "max-w-[min(100%,9rem)]" : "max-w-[7rem]"
-            }`}
-          >
+        <DemoCell label={`Servo · ${Math.round(servoAngle)}°`} sub={`duty ${duty}%`}>
+          <div className="relative h-full w-full overflow-hidden rounded-full border-[3px] border-border bg-muted">
             <div
               className="pointer-events-none absolute inset-[12%] rounded-full border border-border/60"
               aria-hidden
@@ -110,11 +107,49 @@ export function DemoDials({ duty, playing, fill = false }: DemoDialsProps) {
             <span className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[16%] w-[16%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-sm" />
             <span className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[7%] w-[7%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal" />
           </div>
-          <p className="w-full truncate text-center text-[0.65rem] font-bold text-muted-foreground sm:text-[0.8rem]">
-            Servo · {Math.round(servoAngle)}°
-          </p>
-        </div>
+        </DemoCell>
       </div>
     </section>
+  );
+}
+
+function DemoCell({
+  children,
+  label,
+  sub,
+}: {
+  children: ReactNode;
+  label: string;
+  sub: ReactNode;
+}) {
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col items-center justify-center gap-2">
+      {/*
+        Size container so the dial can use min(width, height) → always a circle.
+        The outer pad still fills the column; only the dial stays round and centered.
+      */}
+      <div
+        className="flex min-h-0 w-full flex-1 items-center justify-center"
+        style={{ containerType: "size" }}
+      >
+        <div
+          className="relative shrink-0 overflow-hidden rounded-full"
+          style={{
+            width: "min(100cqw, 100cqh, 9rem)",
+            height: "min(100cqw, 100cqh, 9rem)",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+      <div className="shrink-0 text-center">
+        <p className="truncate text-[0.65rem] font-bold text-muted-foreground sm:text-[0.75rem]">
+          {label}
+        </p>
+        <p className="truncate font-mono text-[0.55rem] text-muted-foreground/80 sm:text-[0.65rem]">
+          {sub}
+        </p>
+      </div>
+    </div>
   );
 }
