@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
+import boardExamples from "@/data.json";
 import { DemoDials } from "./DemoDials";
 import { WaveCanvas } from "./WaveCanvas";
 
@@ -10,10 +11,14 @@ const FREQ_MAX = 20;
 
 /** Common logic-level / motor supply rails (radio pick). */
 const SUPPLY_RAILS = [
-  { label: "3.3 V", value: 3.3 },
-  { label: "5 V", value: 5 },
-  { label: "12 V", value: 12 },
+  { label: "3.3 V", value: 3.3, dataKey: "3.3V" as const },
+  { label: "5 V", value: 5, dataKey: "5V" as const },
+  { label: "12 V", value: 12, dataKey: "12V" as const },
 ] as const;
+
+type BoardDataKey = (typeof SUPPLY_RAILS)[number]["dataKey"];
+
+const BOARD_DATA = boardExamples as Record<BoardDataKey, string[]>;
 
 const AMP_DEFAULT = 5;
 /** Scope + drive full-scale (slightly above 12 V rail). */
@@ -116,6 +121,11 @@ export function PwmPlayground() {
     setPlaying(true);
     setChallenge(null);
   }, []);
+
+  const supplyKey: BoardDataKey =
+    SUPPLY_RAILS.find((r) => Math.abs(r.value - amplitude) < 0.01)?.dataKey ??
+    "5V";
+  const exampleBoards = BOARD_DATA[supplyKey] ?? [];
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col gap-3 px-3 py-3 sm:gap-4 sm:px-5 sm:py-4 lg:h-dvh lg:min-h-0 lg:overflow-hidden lg:px-6">
@@ -250,16 +260,11 @@ export function PwmPlayground() {
 
             {/* Supply rail — discrete real-world amplitudes */}
             <div>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-semibold tracking-tight sm:text-base">
-                  Supply
-                </span>
-                <span className="font-mono text-xl font-semibold tabular-nums tracking-tight text-primary sm:text-2xl">
-                  {formatRail(amplitude)}
-                </span>
-              </div>
+              <span className="text-sm font-semibold tracking-tight sm:text-base">
+                Supply
+              </span>
               <div
-                className="mt-3 grid grid-cols-3 gap-2"
+                className="mt-2 grid grid-cols-3 gap-2"
                 role="radiogroup"
                 aria-label="Supply voltage"
               >
@@ -288,6 +293,16 @@ export function PwmPlayground() {
                 })}
               </div>
             </div>
+          </section>
+
+          {/* Example boards for the selected supply rail */}
+          <section className="shrink-0 rounded-2xl border border-border/80 bg-card px-3 py-2.5 shadow-[var(--panel-shadow)] sm:px-3.5 sm:py-3">
+            <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
+              Example {formatRail(amplitude)} boards
+            </p>
+            <p className="mt-1.5 max-h-[4.5rem] overflow-y-auto text-[0.65rem] leading-relaxed text-muted-foreground sm:max-h-[5.25rem] sm:text-[0.7rem]">
+              {exampleBoards.join(" · ")}
+            </p>
           </section>
 
           <div className="min-h-0 flex-1">

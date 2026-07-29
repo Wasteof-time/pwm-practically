@@ -1,0 +1,39 @@
+{
+  "3.3V": [
+    "ESP32 DevKit V1 / NodeMCU-32S",
+    "ESP32-S3 DevModule",
+    "ESP32-C3 / ESP32-C6",
+    "Raspberry Pi Pico (RP2040)",
+    "STM32F401 / STM32F411 (Black Pill)",
+    "STM32 Nucleo Boards",
+    "Arduino Due",
+    "Arduino Zero / SAMD21 Breakouts",
+    "Arduino MKR Series",
+    "Arduino Portenta H7",
+    "Adafruit Feather Series"
+  ],
+  "5V": [
+    "Arduino Uno R3",
+    "Arduino Uno R4 Minima / WiFi",
+    "Arduino Mega 2560",
+    "Arduino Nano (Classic ATmega328P)",
+    "Arduino Pro Mini (5V)",
+    "Arduino Leonardo / Micro",
+    "Digispark ATtiny85 USB Board",
+    "ATtiny84 / ATtiny85 Breakout Boards",
+    "Seeeduino V4.2",
+    "Microchip AVR / PIC Curiosity Boards"
+  ],
+  "12V": [
+    "Arduino Opta",
+    "Controllino Series",
+    "Norvi IIOT Industrial Controllers",
+    "Kincony KC868 Series",
+    "BIGTREETECH SKR Mini E3 / SKR V1.4 / SKR 3",
+    "BIGTREETECH Octopus / Monster8",
+    "Makerbase MKS Gen L / MKS Robin Nano",
+    "Macchina M2",
+    "Ruggeduino",
+    "Teensy / ESP32 CAN Bus Expansion Controllers"
+  ]
+}
