@@ -7,15 +7,21 @@ import { WaveCanvas } from "./WaveCanvas";
 
 const FREQ_MIN = 1;
 const FREQ_MAX = 20;
-const AMP_MIN = 3;
-const AMP_MAX = 15;
+
+/** Common logic-level / motor supply rails (radio pick). */
+const SUPPLY_RAILS = [
+  { label: "3.3 V", value: 3.3 },
+  { label: "5 V", value: 5 },
+  { label: "12 V", value: 12 },
+] as const;
+
 const AMP_DEFAULT = 5;
-/** Full-scale average used for LED/motor demos (matches scope). */
-const AMP_SCALE_MAX = 15;
+/** Scope + drive full-scale (slightly above 12 V rail). */
+const AMP_SCALE_MAX = 13;
 
 /**
  * Challenges:
- * - avgV: hit a target average voltage (duty adjusts when amplitude changes)
+ * - avgV: hit a target average voltage (duty adjusts when supply rail changes)
  * - duty: match a fixed duty cycle on the dashed wave
  */
 const CHALLENGES = [
@@ -23,14 +29,14 @@ const CHALLENGES = [
     id: "led-half",
     label: "Make the LED half-bright",
     mode: "avgV" as const,
-    /** Half of max brightness → 50% of 15 V scale */
+    /** Half of max brightness on the 13 V scale */
     targetAvgV: AMP_SCALE_MAX * 0.5,
   },
   {
     id: "motor-slow",
     label: "Make the motor spin slowly",
     mode: "avgV" as const,
-    /** ~20% of max drive (same idea as the old 20% duty challenge) */
+    /** ~20% of max drive */
     targetAvgV: AMP_SCALE_MAX * 0.2,
   },
   {
@@ -87,19 +93,20 @@ export function PwmPlayground() {
       const targetV = challenge.targetAvgV;
       // Need peak ≥ target average, otherwise impossible even at 100% duty
       if (amplitude + 1e-6 < targetV) {
-        return `Raise amplitude to at least ${targetV.toFixed(1)} V — then set duty near ${dutyForTargetAvgV(targetV, Math.max(amplitude, targetV))}%.`;
+        return `Try a higher supply rail, then set duty near ${dutyForTargetAvgV(targetV, Math.max(amplitude, targetV))}%.`;
       }
       const vDiff = Math.abs(avgV - targetV);
       if (vDiff <= 0.3) {
-        return `🎉 Nailed it! Average voltage is ~${targetV.toFixed(1)} V.`;
+        return "🎉 Nailed it!";
       }
-      return `Target V_avg ${targetV.toFixed(1)} V → duty ~${challengeDuty}% at ${amplitude.toFixed(1)} V peak (you're ${vDiff.toFixed(2)} V away).`;
+      const dDiff = Math.abs(duty - challengeDuty);
+      return `Aim for duty ~${challengeDuty}% on this supply (you're ${dDiff}% away).`;
     }
 
     // Fixed duty-cycle wave match
     const dDiff = Math.abs(duty - challenge.targetDuty);
-    if (dDiff <= 3) return "🎉 Nailed it! That's the target duty cycle.";
-    return `Target duty ${challenge.targetDuty}% — keep sliding! (you're ${dDiff}% away)`;
+    if (dDiff <= 3) return "🎉 Nailed it!";
+    return `Aim for duty ${challenge.targetDuty}% (you're ${dDiff}% away).`;
   }, [challenge, challengeDuty, amplitude, avgV, duty]);
 
   const reset = useCallback(() => {
@@ -241,39 +248,44 @@ export function PwmPlayground() {
               </div>
             </div>
 
-            {/* Amplitude — peak ON voltage (scope height) */}
+            {/* Supply rail — discrete real-world amplitudes */}
             <div>
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-sm font-semibold tracking-tight sm:text-base">
-                  Amplitude
+                  Supply
                 </span>
                 <span className="font-mono text-xl font-semibold tabular-nums tracking-tight text-primary sm:text-2xl">
-                  {amplitude.toFixed(1)}
-                  <span className="ml-0.5 text-sm font-medium text-primary/70 sm:text-base">
-                    V
-                  </span>
+                  {formatRail(amplitude)}
                 </span>
               </div>
-              <div className="apple-slider mt-3 sm:mt-4">
-                <input
-                  type="range"
-                  className="duty-slider"
-                  min={AMP_MIN}
-                  max={AMP_MAX}
-                  step={0.1}
-                  value={amplitude}
-                  aria-label="Amplitude"
-                  onChange={(e) => setAmplitude(Number(e.target.value))}
-                  style={{
-                    ["--fill" as string]: `${
-                      ((amplitude - AMP_MIN) / (AMP_MAX - AMP_MIN)) * 100
-                    }%`,
-                  }}
-                />
-              </div>
-              <div className="mt-1.5 flex justify-between text-[0.6rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                <span>{AMP_MIN} V</span>
-                <span>{AMP_MAX} V</span>
+              <div
+                className="mt-3 grid grid-cols-3 gap-2"
+                role="radiogroup"
+                aria-label="Supply voltage"
+              >
+                {SUPPLY_RAILS.map((rail) => {
+                  const selected = Math.abs(amplitude - rail.value) < 0.01;
+                  return (
+                    <label
+                      key={rail.value}
+                      className={`flex cursor-pointer items-center justify-center rounded-full border px-2 py-2 text-sm font-semibold transition-all duration-200 ${
+                        selected
+                          ? "border-primary/40 bg-[color-mix(in_oklab,var(--primary)_14%,transparent)] text-primary shadow-sm"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="supply-rail"
+                        value={rail.value}
+                        checked={selected}
+                        onChange={() => setAmplitude(rail.value)}
+                        className="sr-only"
+                      />
+                      {rail.label}
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -293,11 +305,11 @@ export function PwmPlayground() {
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <Stat label="Duty cycle" value={`${duty} %`} />
             <Stat label="Frequency" value={`${freq} Hz`} />
-            <Stat label="Amplitude" value={`${amplitude.toFixed(1)} V`} />
+            <Stat label="Supply" value={formatRail(amplitude)} />
             <Stat
               label="Average voltage"
               value={`${avgV.toFixed(2)} V`}
-              sub={`/ ${amplitude.toFixed(1)} V`}
+              sub={`/ ${formatRail(amplitude)}`}
             />
             <Stat label="ON time" value={`${onMs.toFixed(1)} ms`} />
             <Stat label="OFF time" value={`${offMs.toFixed(1)} ms`} />
@@ -312,7 +324,6 @@ export function PwmPlayground() {
             <h2 className="text-base font-semibold sm:text-lg">Challenges</h2>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {CHALLENGES.map((c) => {
-                const neededDuty = challengeTargetDuty(c, amplitude);
                 const active = challenge?.id === c.id;
                 return (
                   <button
@@ -325,16 +336,7 @@ export function PwmPlayground() {
                         : "border-border bg-card hover:bg-muted"
                     }`}
                   >
-                    <span className="block">{c.label}</span>
-                    <span
-                      className={`mt-0.5 block text-[0.7rem] font-medium ${
-                        active ? "text-accent/80" : "text-muted-foreground"
-                      }`}
-                    >
-                      {c.mode === "avgV"
-                        ? `Target ${c.targetAvgV.toFixed(1)} V_avg · duty ~${neededDuty}%`
-                        : `Target duty ${c.targetDuty}%`}
-                    </span>
+                    {c.label}
                   </button>
                 );
               })}
@@ -354,6 +356,13 @@ export function PwmPlayground() {
       </section>
     </div>
   );
+}
+
+function formatRail(v: number): string {
+  if (Math.abs(v - 3.3) < 0.01) return "3.3 V";
+  if (Math.abs(v - 5) < 0.01) return "5 V";
+  if (Math.abs(v - 12) < 0.01) return "12 V";
+  return `${v} V`;
 }
 
 function Stat({

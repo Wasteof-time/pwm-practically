@@ -17,8 +17,8 @@ const SCOPE = {
   offLabel: "#5a6a5a",
 } as const;
 
-/** Fixed vertical scale (matches amplitude slider max). */
-export const AMP_SCALE_MAX = 15;
+/** Fixed vertical scale on the scope. */
+export const AMP_SCALE_MAX = 13;
 
 export type WaveCanvasProps = {
   duty: number;
@@ -141,7 +141,7 @@ export function WaveCanvas({
       // Fixed 0…AMP_SCALE_MAX volt scale so amplitude changes visible height
       const amp = Math.max(0.1, p.amplitude);
       const hi = lo - (lo - top) * (amp / AMP_SCALE_MAX);
-      const fullHi = top; // 15 V line
+      const fullHi = top; // 13 V line
 
       ctx.strokeStyle = SCOPE.grid;
       ctx.lineWidth = 1;

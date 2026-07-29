@@ -2,12 +2,12 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
-/** Max amplitude on the playground scale (matches scope). */
-const AMP_SCALE_MAX = 15;
+/** Scope full-scale for LED/motor drive (matches oscilloscope). */
+const AMP_SCALE_MAX = 13;
 
 type DemoDialsProps = {
   duty: number;
-  /** Peak PWM voltage (volts). */
+  /** Peak PWM voltage (volts) — selected rail. */
   amplitude: number;
   playing: boolean;
 };
@@ -15,6 +15,7 @@ type DemoDialsProps = {
 export function DemoDials({ duty, amplitude, playing }: DemoDialsProps) {
   const dutyFrac = duty / 100;
   const avgV = amplitude * dutyFrac;
+  // Brightness / motor speed from average voltage vs full scope scale
   const drive = Math.min(1, Math.max(0, avgV / AMP_SCALE_MAX));
   const servoAngle = -90 + dutyFrac * 180;
   const spinning = playing && drive > 0.03;
@@ -23,18 +24,9 @@ export function DemoDials({ duty, amplitude, playing }: DemoDialsProps) {
   const speedPct = Math.round(drive * 100);
 
   return (
-    /* Outer pad still fills remaining column height */
     <section className="flex h-full min-h-0 w-full flex-col rounded-2xl border border-border/80 bg-card p-3 shadow-[var(--panel-shadow)] sm:p-5">
       <div className="grid min-h-0 flex-1 grid-cols-3 gap-2 sm:gap-4">
-        {/* LED */}
-        <DemoCell
-          label={`LED · ${brightPct}%`}
-          sub={
-            <>
-              {avgV.toFixed(2)} V<sub>avg</sub>
-            </>
-          }
-        >
+        <DemoCell label={`LED · ${brightPct}%`}>
           <div
             className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-[3px] border-border bg-muted"
             style={{
@@ -48,15 +40,7 @@ export function DemoDials({ duty, amplitude, playing }: DemoDialsProps) {
           </div>
         </DemoCell>
 
-        {/* Motor */}
-        <DemoCell
-          label={`Motor · ${speedPct}%`}
-          sub={
-            <>
-              {avgV.toFixed(2)} V<sub>avg</sub>
-            </>
-          }
-        >
+        <DemoCell label={`Motor · ${speedPct}%`}>
           <div className="relative h-full w-full overflow-hidden rounded-full border-[3px] border-border bg-muted">
             <div className="absolute inset-0 flex items-center justify-center">
               <div
@@ -85,8 +69,7 @@ export function DemoDials({ duty, amplitude, playing }: DemoDialsProps) {
           </div>
         </DemoCell>
 
-        {/* Servo */}
-        <DemoCell label={`Servo · ${Math.round(servoAngle)}°`} sub={`duty ${duty}%`}>
+        <DemoCell label={`Servo · ${Math.round(servoAngle)}°`}>
           <div className="relative h-full w-full overflow-hidden rounded-full border-[3px] border-border bg-muted">
             <div
               className="pointer-events-none absolute inset-[12%] rounded-full border border-border/60"
@@ -116,18 +99,12 @@ export function DemoDials({ duty, amplitude, playing }: DemoDialsProps) {
 function DemoCell({
   children,
   label,
-  sub,
 }: {
   children: ReactNode;
   label: string;
-  sub: ReactNode;
 }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col items-center justify-center gap-2">
-      {/*
-        Size container so the dial can use min(width, height) → always a circle.
-        The outer pad still fills the column; only the dial stays round and centered.
-      */}
       <div
         className="flex min-h-0 w-full flex-1 items-center justify-center"
         style={{ containerType: "size" }}
@@ -142,14 +119,9 @@ function DemoCell({
           {children}
         </div>
       </div>
-      <div className="shrink-0 text-center">
-        <p className="truncate text-[0.65rem] font-bold text-muted-foreground sm:text-[0.75rem]">
-          {label}
-        </p>
-        <p className="truncate font-mono text-[0.55rem] text-muted-foreground/80 sm:text-[0.65rem]">
-          {sub}
-        </p>
-      </div>
+      <p className="shrink-0 truncate text-center text-[0.65rem] font-bold text-muted-foreground sm:text-[0.75rem]">
+        {label}
+      </p>
     </div>
   );
 }
