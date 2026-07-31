@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useMemo, useState } from "react";
-import { DemoDials } from "./DemoDials";
+import { useCallback, useState } from "react";
 import { WaveCanvas } from "./WaveCanvas";
 
 const FREQ_MIN = 1;
@@ -10,49 +9,6 @@ const FREQ_MAX = 20;
 const AMP_MIN = 3;
 const AMP_MAX = 15;
 const AMP_DEFAULT = 5;
-/** Full-scale average used for LED/motor demos (matches scope). */
-const AMP_SCALE_MAX = 15;
-
-/**
- * Challenges:
- * - avgV: hit a target average voltage (duty adjusts when amplitude changes)
- * - duty: match a fixed duty cycle on the dashed wave
- */
-const CHALLENGES = [
-  {
-    id: "led-half",
-    label: "Make the LED half-bright",
-    mode: "avgV" as const,
-    /** Half of max brightness → 50% of 15 V scale */
-    targetAvgV: AMP_SCALE_MAX * 0.5,
-  },
-  {
-    id: "motor-slow",
-    label: "Make the motor spin slowly",
-    mode: "avgV" as const,
-    /** ~20% of max drive (same idea as the old 20% duty challenge) */
-    targetAvgV: AMP_SCALE_MAX * 0.2,
-  },
-  {
-    id: "match-wave",
-    label: "Match this wave",
-    mode: "duty" as const,
-    targetDuty: 75,
-  },
-] as const;
-
-type Challenge = (typeof CHALLENGES)[number];
-
-/** Duty % needed for target average voltage at the current amplitude. */
-function dutyForTargetAvgV(targetAvgV: number, amp: number): number {
-  if (amp <= 0) return 0;
-  return Math.round(Math.min(100, Math.max(0, (targetAvgV / amp) * 100)));
-}
-
-function challengeTargetDuty(c: Challenge, amp: number): number {
-  if (c.mode === "avgV") return dutyForTargetAvgV(c.targetAvgV, amp);
-  return c.targetDuty;
-}
 
 const panel =
   "rounded-2xl border border-border/80 bg-card p-4 shadow-[var(--panel-shadow)] sm:p-5";
@@ -67,47 +23,17 @@ export function PwmPlayground() {
   const [amplitude, setAmplitude] = useState(AMP_DEFAULT);
   const [playing, setPlaying] = useState(true);
   const [showAverage, setShowAverage] = useState(true);
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
 
   const period = 1000 / freq;
   const onMs = (period * duty) / 100;
   const offMs = period - onMs;
   const avgV = (amplitude * duty) / 100;
 
-  /** Duty the dashed target wave should show (updates with amplitude for avgV challenges). */
-  const challengeDuty = useMemo(() => {
-    if (!challenge) return null;
-    return challengeTargetDuty(challenge, amplitude);
-  }, [challenge, amplitude]);
-
-  const challengeMsg = useMemo(() => {
-    if (!challenge || challengeDuty == null) return "";
-
-    if (challenge.mode === "avgV") {
-      const targetV = challenge.targetAvgV;
-      // Need peak ≥ target average, otherwise impossible even at 100% duty
-      if (amplitude + 1e-6 < targetV) {
-        return `Raise amplitude to at least ${targetV.toFixed(1)} V — then set duty near ${dutyForTargetAvgV(targetV, Math.max(amplitude, targetV))}%.`;
-      }
-      const vDiff = Math.abs(avgV - targetV);
-      if (vDiff <= 0.3) {
-        return `🎉 Nailed it! Average voltage is ~${targetV.toFixed(1)} V.`;
-      }
-      return `Target V_avg ${targetV.toFixed(1)} V → duty ~${challengeDuty}% at ${amplitude.toFixed(1)} V peak (you're ${vDiff.toFixed(2)} V away).`;
-    }
-
-    // Fixed duty-cycle wave match
-    const dDiff = Math.abs(duty - challenge.targetDuty);
-    if (dDiff <= 3) return "🎉 Nailed it! That's the target duty cycle.";
-    return `Target duty ${challenge.targetDuty}% — keep sliding! (you're ${dDiff}% away)`;
-  }, [challenge, challengeDuty, amplitude, avgV, duty]);
-
   const reset = useCallback(() => {
     setDuty(50);
     setFreq(4);
     setAmplitude(AMP_DEFAULT);
     setPlaying(true);
-    setChallenge(null);
   }, []);
 
   return (
@@ -124,7 +50,7 @@ export function PwmPlayground() {
             className="h-full w-full object-cover"
           />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="text-[clamp(1.35rem,3vw,2rem)] font-bold leading-none tracking-tight text-foreground">
             PWM Playground
           </h1>
@@ -132,13 +58,20 @@ export function PwmPlayground() {
             by Robotics Club VITC
           </p>
         </div>
+        <button
+          type="button"
+          onClick={reset}
+          className="shrink-0 rounded-full border border-transparent bg-secondary px-4 py-2 text-sm font-extrabold text-secondary-foreground transition hover:brightness-105 sm:px-5 sm:py-2.5"
+        >
+          ↺ Reset
+        </button>
       </header>
 
-      {/* Main workspace — fills remaining height */}
+      {/* Main workspace — scope left, controls + readings stacked right */}
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-12 lg:grid-rows-1">
-        {/* LEFT — Live signal (stretches full column height) */}
+        {/* LEFT — Live signal */}
         <section
-          className={`${panel} flex min-h-0 min-w-0 flex-col gap-3 lg:col-span-6 lg:h-full`}
+          className={`${panel} flex min-h-0 min-w-0 flex-col gap-3 lg:col-span-8 lg:h-full`}
         >
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold tracking-tight sm:text-lg">
@@ -169,15 +102,17 @@ export function PwmPlayground() {
               amplitude={amplitude}
               playing={playing}
               showAverage={showAverage}
-              challengeTarget={challengeDuty}
               onDutyChange={setDuty}
             />
           </div>
         </section>
 
-        {/* MIDDLE — Duty, frequency, compact demos */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-3 sm:gap-3 lg:col-span-4 lg:h-full">
-          <section className={`${panel} shrink-0 space-y-4 sm:space-y-5`}>
+        {/* RIGHT — Controls stacked above Readings */}
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 sm:gap-4 lg:col-span-4 lg:h-full">
+          {/* Controls */}
+          <section
+            className={`${panel} shrink-0 space-y-5 sm:space-y-6`}
+          >
             {/* Duty cycle */}
             <div>
               <div className="flex items-baseline justify-between gap-3">
@@ -205,7 +140,7 @@ export function PwmPlayground() {
               </div>
             </div>
 
-            {/* Frequency — packs / spreads waves on the scope */}
+            {/* Frequency */}
             <div>
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-sm font-semibold tracking-tight sm:text-base">
@@ -241,7 +176,7 @@ export function PwmPlayground() {
               </div>
             </div>
 
-            {/* Amplitude — peak ON voltage (scope height) */}
+            {/* Amplitude */}
             <div>
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-sm font-semibold tracking-tight sm:text-base">
@@ -278,80 +213,28 @@ export function PwmPlayground() {
             </div>
           </section>
 
-          <div className="min-h-0 flex-1">
-            <DemoDials duty={duty} amplitude={amplitude} playing={playing} />
-          </div>
-        </div>
-
-        {/* RIGHT — Readings (matches column height, equal stat rows) */}
-        <section
-          className={`${panel} flex min-h-0 min-w-0 flex-col gap-2 lg:col-span-2 lg:h-full`}
-        >
-          <h2 className="shrink-0 text-sm font-semibold tracking-tight text-muted-foreground">
-            Readings
-          </h2>
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
-            <Stat label="Duty cycle" value={`${duty} %`} />
-            <Stat label="Frequency" value={`${freq} Hz`} />
-            <Stat label="Amplitude" value={`${amplitude.toFixed(1)} V`} />
-            <Stat
-              label="Average voltage"
-              value={`${avgV.toFixed(2)} V`}
-              sub={`/ ${amplitude.toFixed(1)} V`}
-            />
-            <Stat label="ON time" value={`${onMs.toFixed(1)} ms`} />
-            <Stat label="OFF time" value={`${offMs.toFixed(1)} ms`} />
-          </div>
-        </section>
-      </div>
-
-      {/* Challenges — pinned to bottom of viewport */}
-      <section className={`${panel} shrink-0`}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold sm:text-lg">Challenges</h2>
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {CHALLENGES.map((c) => {
-                const neededDuty = challengeTargetDuty(c, amplitude);
-                const active = challenge?.id === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setChallenge(c)}
-                    className={`rounded-xl border-2 px-3 py-2 text-left text-sm font-semibold transition ${
-                      active
-                        ? "border-accent bg-[color-mix(in_oklab,var(--accent)_15%,transparent)] text-accent"
-                        : "border-border bg-card hover:bg-muted"
-                    }`}
-                  >
-                    <span className="block">{c.label}</span>
-                    <span
-                      className={`mt-0.5 block text-[0.7rem] font-medium ${
-                        active ? "text-accent/80" : "text-muted-foreground"
-                      }`}
-                    >
-                      {c.mode === "avgV"
-                        ? `Target ${c.targetAvgV.toFixed(1)} V_avg · duty ~${neededDuty}%`
-                        : `Target duty ${c.targetDuty}%`}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {challengeMsg ? (
-              <p className="mt-2 text-sm font-semibold sm:text-base">{challengeMsg}</p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={reset}
-            className="w-full shrink-0 rounded-full border border-transparent bg-secondary px-5 py-2.5 text-sm font-extrabold text-secondary-foreground transition hover:brightness-105 sm:w-auto"
+          {/* Readings */}
+          <section
+            className={`${panel} flex min-h-0 flex-1 flex-col gap-2`}
           >
-            ↺ Reset
-          </button>
+            <h2 className="shrink-0 text-sm font-semibold tracking-tight text-muted-foreground">
+              Readings
+            </h2>
+            <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 content-stretch">
+              <Stat label="Duty cycle" value={`${duty} %`} />
+              <Stat label="Frequency" value={`${freq} Hz`} />
+              <Stat label="Amplitude" value={`${amplitude.toFixed(1)} V`} />
+              <Stat
+                label="Average voltage"
+                value={`${avgV.toFixed(2)} V`}
+                sub={`/ ${amplitude.toFixed(1)} V`}
+              />
+              <Stat label="ON time" value={`${onMs.toFixed(1)} ms`} />
+              <Stat label="OFF time" value={`${offMs.toFixed(1)} ms`} />
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
@@ -366,11 +249,11 @@ function Stat({
   sub?: string;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-center rounded-xl bg-muted px-3 py-2.5 sm:px-3.5 sm:py-3">
+    <div className="flex min-h-0 min-w-0 flex-col justify-center rounded-xl bg-muted px-3 py-2.5 sm:px-3.5 sm:py-3">
       <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground sm:text-[0.7rem]">
         {label}
       </p>
-      <p className="mt-0.5 font-mono text-base font-extrabold tabular-nums leading-tight sm:text-lg">
+      <p className="mt-0.5 break-words font-mono text-base font-extrabold tabular-nums leading-tight sm:text-lg">
         {value}
         {sub ? (
           <span className="ml-1 text-xs font-semibold text-muted-foreground sm:text-sm">

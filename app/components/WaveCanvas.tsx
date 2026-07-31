@@ -27,7 +27,6 @@ export type WaveCanvasProps = {
   amplitude: number;
   playing: boolean;
   showAverage: boolean;
-  challengeTarget: number | null;
   onDutyChange: (duty: number) => void;
 };
 
@@ -37,7 +36,6 @@ export function WaveCanvas({
   amplitude,
   playing,
   showAverage,
-  challengeTarget,
   onDutyChange,
 }: WaveCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,7 +48,6 @@ export function WaveCanvas({
     amplitude,
     playing,
     showAverage,
-    challengeTarget,
     onDutyChange,
   });
 
@@ -60,7 +57,6 @@ export function WaveCanvas({
     amplitude,
     playing,
     showAverage,
-    challengeTarget,
     onDutyChange,
   };
 
@@ -192,16 +188,6 @@ export function WaveCanvas({
       ctx.beginPath();
       ctx.rect(padL, 0, plotW, h);
       ctx.clip();
-
-      if (p.challengeTarget != null) {
-        ctx.strokeStyle = SCOPE.saffron;
-        ctx.setLineDash([6, 6]);
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        drawWave(p.challengeTarget / 100, padL, cycleW, offset, hi, lo, cycles);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
 
       ctx.strokeStyle = SCOPE.signal;
       ctx.lineWidth = 6;

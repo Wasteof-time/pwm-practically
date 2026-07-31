@@ -16,7 +16,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "PWM Playground — Robotics Club VITC",
   description:
-    "A hands-on PWM playground by Robotics Club VITC: duty cycle, square wave, LED, motor and servo demos.",
+    "A hands-on PWM playground by Robotics Club VITC: duty cycle, frequency, amplitude, and live square-wave scope.",
   icons: {
     icon: [{ url: "/rclogo.webp", type: "image/webp" }],
     apple: [{ url: "/rclogo.webp", type: "image/webp" }],

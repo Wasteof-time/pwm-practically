@@ -199,18 +199,3 @@ input[type="range"].duty-slider:active::-webkit-slider-runnable-track {
 input[type="range"].duty-slider:active::-webkit-slider-thumb {
   margin-top: calc((0.5rem - 1.625rem) / 2);
 }
-
-/* Motor rotor: rotate only — parent flex box handles centering */
-@keyframes spin-motor {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.motor-spin {
-  animation: spin-motor var(--spin-duration, 1s) linear infinite;
-  transform-origin: center center;
-}
