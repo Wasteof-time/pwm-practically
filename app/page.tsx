@@ -1,5 +1,5 @@
-import { PwmPlayground } from "./components/PwmPlayground";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <PwmPlayground />;
+  redirect("/v2");
 }
