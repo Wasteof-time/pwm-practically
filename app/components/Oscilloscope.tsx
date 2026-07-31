@@ -61,9 +61,9 @@ export function Oscilloscope({
         return;
       }
 
-      // Slow visual scroll — not true frequency (scope shows frozen cycles)
+      // Visual scroll — not true frequency (scope shows frozen cycles)
       if (animate) {
-        phaseRef.current = (t * 0.00012) % 1;
+        phaseRef.current = (t * 0.00045) % 1;
       }
 
       // Background

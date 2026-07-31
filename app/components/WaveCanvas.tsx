@@ -88,7 +88,8 @@ export function WaveCanvas({
       const dt = (now - lastRef.current) / 1000;
       lastRef.current = now;
       if (p.playing) {
-        phaseRef.current = (phaseRef.current + dt * Math.min(p.freq, 2) * 0.25) % 1;
+        // Visual scroll rate (not true Hz) — scales with freq so Slow/Med/Fast feel distinct
+        phaseRef.current = (phaseRef.current + dt * Math.min(p.freq, 10) * 0.55) % 1;
       }
 
       const dpr = window.devicePixelRatio || 1;
